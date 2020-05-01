@@ -1,4 +1,6 @@
+//****************************************
 // sheet functions
+//****************************************
 
 function getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX){
   var row = +uniqueid - UNIQUEID_START_VAL +UNIQUEID_START_ROWINDEX; // assumes: tracking sheet rows are sorted by contiguous increasing request-number
@@ -19,7 +21,10 @@ function getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX)
 //}
 
 
+
+//****************************************
 // slack command functions
+//****************************************
 
 function checkUniqueID (uniqueid){
   // check that uniqueid does indeed match a 4-digit string
@@ -35,6 +40,137 @@ function checkUniqueID (uniqueid){
     return true;
   }
 }
+
+
+function handleSlackCommands (par){
+//  handle slack slash command POST requests
+  
+  
+  /// declare variables
+  var globvar = globalVariables();
+  var teamid_true =  globvar['TEAM_ID'];
+  var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request   
+  
+  // ensure doPost request originates from our slack app - verification token method
+  // note: This is not as secure as using the signed secret method (https://api.slack.com/docs/verifying-requests-from-slack) because the token is not uniquely hashed and can be intercepted. 
+  // note-continued: Think of improving this in the future.
+  var token = par.token;
+  
+  if(!token_true){ // check that token_true has been set in script properties
+    return ContentService.createTextOutput('error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.');
+  }
+  if (token !== token_true) {
+    return ContentService.createTextOutput('error: Invalid token '+token+' . The command will not run. Please contact the web app developer.');
+  }
+  
+  // extract relevant data from message body
+  var workspace = par.team_id;
+  var command = par.command;
+  var channelid = par.channel_id;
+  var userid = par.user_id;
+  var username = par.user_name;
+  var args = par.text;
+  var response_url = par.response_url;
+  
+  // check request originates from our slack workspace
+  if (workspace != teamid_true){
+    return ContentService.createTextOutput('error: You are sending your command from an unauthorised slack workspace.');
+  }
+  
+  // process command field. 
+  // note: Slack has a 3 second timeout on client end. This has not been an issue yet, but with database volume increase, function execution times may increase and lead to timeouts. 
+  // note-continued: A fix would be to return an acknowledgement message to client directly without actually executing the function. 
+  // note-continued: The function should be somehow queued for execution and par.response_url is passed as an extra argument which allows the slack acknowledgment message to be updated. 
+  // note-continued : I have tried delayed function executes with time-delay triggers but that was not appropriate as time-delay triggers - upon creation - have a 1 min queue time before triggering. Too long.
+  // note-continued : A workaround could be to queue commands with an automatic submission to a dedicated form (see https://stackoverflow.com/questions/54809366/how-to-send-delayed-response-slack-api-with-google-apps-script-webapp?rq=1). 
+  // note-continued : The form responses must be linked to the spreadsheet. Then, the onFormSubmit installed trigger may catch the submissions and execute the relevant functions. This is faster than time-delayed triggers, but can still take several seconds. 
+  // note-continued : For now I have avoided any delayed execution and optimised the function execution times to ensure that a return message arrives within the 3 second timeout window.
+  if (command == '/_volunteer'){
+    return volunteer(args, channelid, userid, username);      
+  } else if (command == '/_volunteer2'){
+    return volunteer2(args, channelid, userid, username);      
+  } else if (command == '/_assign'){
+    return assign(args,channelid, userid);      
+  } else if (command == '/_cancel') {
+    return cancel(args, channelid, userid);
+  } else if (command == '/_done') {
+    return ContentService.createTextOutput(done(args, channelid, userid));
+  } else if (command == '/_list') {
+    return list(channelid);
+  }  else if (command == '/_listactive') {
+    return listactive(channelid);
+  } else if (command == '/_listall') {
+    return listall(channelid);
+  } else if (command == '/_listmine') {
+    return listmine(channelid,userid);
+  } else if (command == '/_listallmine') {
+    return listallmine(channelid,userid);
+  } else if (command == '/jb_v'){
+    return volunteer(args, channelid, userid, username);      
+  } else if (command == '/jb_c') {
+    return cancel(args, channelid, userid);
+  } else if (command == '/jb_d') {
+    return ContentService.createTextOutput(done_send_modal(args, channelid, userid, response_url, par.trigger_id)); // clarify request by opening a modal in slack (with trigger_id) for user to fill
+  } else {
+    return ContentService.createTextOutput('error: Sorry, the `' + command + '` command is not currently supported.');
+  }
+}
+
+
+function handleSlackInteractiveMessages (payload){
+  // handle interactive message POST requests from slack
+
+  // declare variables
+  var globvar = globalVariables();
+  var teamid_true =  globvar['TEAM_ID'];
+  var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request     
+  
+  // ensure doPost request originates from our slack app - verification token method
+  // note: This is not as secure as using the signed secret method (https://api.slack.com/docs/verifying-requests-from-slack) because the token is not uniquely hashed and can be intercepted. 
+  // note-continued: Think of improving this in the future.
+  var token = payload.token;
+  if(!token_true){ // check that token_true has been set in script properties
+//    return ContentService.createTextOutput('error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.');
+    return ContentService.createTextOutput();
+  }  
+  if (token !== token_true) {
+//    return ContentService.createTextOutput('error: Invalid token '+token+' . The command will not run. Please contact the web app developer.');
+    return ContentService.createTextOutput();
+  }
+  
+  
+  // extract relevant data from message body
+  var workspace = payload.team.id;
+  var userid = payload.user.id;
+//  var viewid = payload.view.id;
+  
+  
+  // check request originates from our slack workspace
+  if (workspace != teamid_true){
+//    return ContentService.createTextOutput('error: You are sending your command from an unauthorised slack workspace.');
+    return ContentService.createTextOutput();
+  }
+  
+  // proceed depending on the type of interactive message received
+  if (payload.type === "view_submission"){ // modal submission
+    
+    var view = payload.view;
+    
+    if (view.callback_id === "done_clarify"){ // /done modal
+      done_process_modal(userid,view);   
+      return ContentService.createTextOutput(); // an empty HTTP 200 OK message is required for modal to close on slack client end.
+    } else {
+      // modal callback_id was not recognised
+      var out_message = 'I don\'t recognise the form identifier that was submitted. This is a bug, please can you notify a developer?';
+      return ContentService.createTextOutput(out_message);
+    }
+  } else{
+    // interactive element type was not recognised
+    var out_message = 'I\'m not capable of reading anything else but slack modals. This is a bug, please can you notify a developer?';    
+    return ContentService.createTextOutput(out_message);
+  }
+}
+
 
 
 // slack message functions

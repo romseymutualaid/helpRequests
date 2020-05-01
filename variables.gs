@@ -32,7 +32,11 @@ function globalVariables(){
                       "commentsForCoordinator",
                       "slackVolunteerName",
                       "channelid",
-                      "slackVolunteerID"], // tracking sheet column order. ie: first element is col 'A', second is col 'B', ... 
+                      "slackVolunteerID",
+                     "completionCount",
+                     "completionLastTimestamp",
+                     "completionLastDetails",
+                     "nextDateNeeded"], // tracking sheet column order. ie: first element is col 'A', second is col 'B', ... 
 //    The strings need not match the actual sheet's header strings. They must match the strings called in the script functions.
     
     WEBHOOK_CHATPOSTMESSAGE: 'https://slack.com/api/chat.postMessage'

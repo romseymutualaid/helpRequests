@@ -86,7 +86,7 @@ function cancel(uniqueid, channelid, userid){
   } else if (volunteerID != '' && volunteerID != userid && userid!=mod_userid) {
     return ContentService.createTextOutput('error: You cannot cancel <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') because it is taken by someone else (<@' + volunteerID + '>). '+
                                            'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_requestCoord + '.');
-  } else if (volunteerID == userid && (status != "Assigned" && status != "Ongoing")){ // mods can bypass this (ie. they can cancel a closed request)
+  } else if (volunteerID == userid && (status != "Assigned" && status != "Ongoing" && status != "ToClose?")){ // mods can bypass this (ie. they can cancel a closed request)
     return ContentService.createTextOutput('You were signed up on <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '), but it\'s now closed. We therefore won\'t remove you. '+
                                            'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_requestCoord + '.');
   }
