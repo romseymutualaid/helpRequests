@@ -9,7 +9,7 @@ function doPost(e) { // catches slack slash commands
     if (payload){ // if payload exists, this is a POST request from a slack interactive component
       return handleSlackInteractiveMessages(JSON.parse(payload));
     } else{ // else, this is a POST request from a slack slash command
-      return(handleSlackCommands(par));
+      return handleSlackCommands(par);
     }
         
   }
@@ -60,7 +60,9 @@ function triggerOnFormSubmit (e){ // this is an installed trigger. see https://d
 
 
 function triggerOnEdit(e){ // this is an installed trigger. see https://developers.google.com/apps-script/guides/triggers/installable
-  // this function is called when manual editing of the spreadsheet occurs. We use this trigger to detect manual changes to the channel cell of existing requests, and if so, send a message to the newly defined slack channel.
+  // this function is called when manual editing of the spreadsheet occurs. We use this trigger to detect manual changes to:
+  // - the channel field of existing requests, and if so, send a message to the newly defined slack channel.
+  // - the status field of existing requests, and if status is "Re-open" perform a cancel command, otherwise simply log the edit.
   
   
   /// declare variables
@@ -75,7 +77,8 @@ function triggerOnEdit(e){ // this is an installed trigger. see https://develope
   var tracking_sheet_col_order = globvar['SHEET_COL_ORDER'];
   var tracking_sheet_col_index = indexedObjectFromArray(tracking_sheet_col_order); // make associative object to easily get colindex from colname  
   
-   var colindex_channel = tracking_sheet_col_index['channel']; // the column the edit must have occurred in
+  var colindex_channel = tracking_sheet_col_index['channel'];
+  var colindex_status = tracking_sheet_col_index['requestStatus'];
   
   // retrieve relevant information from onEdit trigger event
   var oldValue = e.oldValue;
@@ -89,17 +92,33 @@ function triggerOnEdit(e){ // this is an installed trigger. see https://develope
   var sheetName = sheet.getName();
   
   //var triggerUid = e.triggerUid;
-  //var user = e.user;
+  var user = e.user;
   
   
-  // if channel column was modified on tracking sheet and non-empty, send request to specified channel
-  if (sheetName==tracking_sheetname && col==colindex_channel+1 && newValue!=undefined){      
+  // handle edits on tracking sheet
+  if (sheetName==tracking_sheetname){ 
     
-    // call log sheet
-    var sheet_log = spreadsheet.getSheetByName(log_sheetname);
-    
-    // post message to slack and update sheets
-    postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessage, access_token, 'dispatchUpdate', sheet_log);
+    if (col==colindex_channel+1 && newValue!=undefined){ //handle channel edit (newValue!=undefined avoids capturing undo - i.e. Ctrl+Z - and blank cell events)  
+      
+      // post message to slack and update sheets
+      var sheet_log = spreadsheet.getSheetByName(log_sheetname);
+      postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessage, access_token, 'dispatchUpdate', sheet_log);
+      
+    } else if (col==colindex_status+1){ // handle status edit
+      
+      if(newValue=='Re-open'){ // if "re-open", trigger the cancel function
+        cancel_su(row);
+        
+      } else{ // for other status changes, just log the change
+        // get uniqueid
+        var uniqueid = getUniqueIDbyRow(row, globvar['UNIQUEID_START_VAL'], globvar['UNIQUEID_START_ROWINDEX']);
+        
+        // update log sheet
+        var sheet_log = spreadsheet.getSheetByName(log_sheetname);
+        var row_log = sheet_log.getLastRow();
+        sheet_log.getRange(row_log+1,1,1,5).setValues([[new Date(), uniqueid,'admin','statusManualEdit',newValue]]);
+      }
+    }
        
   }
  

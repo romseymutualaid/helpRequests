@@ -110,10 +110,10 @@ function volunteer (uniqueid, channelid, userid, username){
                                channel: channelid})
     };
   // Send post request to Slack chat.postMessage API   
-  var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options);
+  var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText();
   
   // if post request was unsuccesful, do not update tracking sheet and return error
-  var return_params = JSON.parse(return_message.getContentText());
+  var return_params = JSON.parse(return_message);
   if (return_params.ok !== true){ // message was not successfully posted to channel
     
     // update log sheet

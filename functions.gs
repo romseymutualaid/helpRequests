@@ -3,8 +3,13 @@
 //****************************************
 
 function getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX){
-  var row = +uniqueid - UNIQUEID_START_VAL +UNIQUEID_START_ROWINDEX; // assumes: tracking sheet rows are sorted by contiguous increasing request-number
+  var row = +uniqueid - UNIQUEID_START_VAL + UNIQUEID_START_ROWINDEX; // assumes: tracking sheet rows are sorted by contiguous increasing request-number
   return(row);
+}
+
+function getUniqueIDbyRow(row, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX){
+  var uniqueid = +row + UNIQUEID_START_VAL - UNIQUEID_START_ROWINDEX; // assumes: tracking sheet rows are sorted by contiguous increasing request-number
+  return(uniqueid);
 }
 
 //function getRowByColVal(sheetvalues, colindex, value){    
@@ -39,6 +44,88 @@ function checkUniqueID (uniqueid){
   } else{
     return true;
   }
+}
+
+function checkCommandValidity (cmd,rowvect,userid,modid,channelid){
+  
+  var mention_mod = '<@'+modid+'>';
+  
+  var cmd_state_machine={
+      cmd:{
+        "done":{
+          status:{
+            "Sent|FailSend|Re-open":{
+              returnCode:false,
+              returnMsg:'error: You cannot complete <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') because it is yet to be assigned. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_mod + '.'
+            },
+            "Escalated|Signposted":{
+              returnCode:false,
+              returnMsg:'error: You cannot complete <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') because it is permanently closed. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_mod + '.'
+            },
+            "Assigned|Ongoing|ToClose\?|Closed":{
+              returnCode:true,
+              returnMsg:'You have confirmed completing <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). '+
+                                         'I\'ve notified volunteers in the help request thread and sent your form submission to the request coordinator on-duty.'
+            }
+          }  
+        },
+        "volunteer":{
+          status:{
+            "Sent|Re-open":{
+              returnCode:true,
+              returnMsg:':nerd_face: Thank you for volunteering! You signed up for <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). '+
+                                         'The Requester\'s contact details are ' + contactDetails + ':tada:.\nWhen you are done, type `/done ' + uniqueid + '`.\n'+
+                                         'To cancel your help offer, type `/cancel '+ uniqueid + '`.\nTo see this message again, type `/volunteer ' + uniqueid + '`.\n'+
+                                         'If you need any help, contact ' + mention_mod + '.'
+            },
+            "Assigned|Ongoing":{
+              returnCode:true,
+              returnMsg:':nerd_face: You are still signed up for <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). '+
+                                             'The Requester\'s contact details are ' + contactDetails + ':tada:.\nWhen you are done, type `/done ' + uniqueid + '`.\n'+
+                                             'To cancel your help offer, type `/cancel '+ uniqueid + '`.\nTo see this message again, type `/volunteer ' + uniqueid + '`.\n'+
+                                             'If you need any help, contact ' + mention_mod + '.'
+            },
+            "FailSend|Assigned|Ongoing|ToClose\?|Closed|Escalated|Signposted":{
+              returnCode:false,
+              returnMsg:'Sorry, <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') is not available. Its status is ' + status + '. '+
+                                             'Volunteer is <@' + volunteerID + '>. Type `/list` to list all the available requests in this channel. '+
+                                             'If you think there is a mistake, contact ' + mention_mod + '.'
+            }
+          }
+        },
+        "cancel":{
+          status:{
+            "Sent|FailSend|Re-open":{
+              returnCode:false,
+              returnMsg:'error: You cannot cancel <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') because it is yet to be assigned. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_mod + '.'
+            },
+            "Escalated|Signposted|ToClose\?|Closed":{
+              returnCode:false,
+              returnMsg:'You were signed up on <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '), but it\'s now closed. We therefore won\'t remove you. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_mod + '.'
+            },
+            "Assigned|Ongoing":{
+              returnCode:true,
+              returnMsg:'You just cancelled your offer for help for <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). I\'ve notified the channel.'
+            }
+          }
+        }
+      }
+    };
+  
+  
+  // check request belongs to channelid
+  
+  // check requests userid is {volunteer:{'' or userid}, cancel:{userid,modid}, done:{userid,modid}}
+  
+  // check request status
+  
+  
+  // return {returnCode, returnMsg}
+  
 }
 
 
@@ -94,7 +181,7 @@ function handleSlackCommands (par){
   } else if (command == '/_cancel') {
     return cancel(args, channelid, userid);
   } else if (command == '/_done') {
-    return ContentService.createTextOutput(done(args, channelid, userid));
+    return ContentService.createTextOutput(done_send_modal(args, channelid, userid, response_url, par.trigger_id));
   } else if (command == '/_list') {
     return list(channelid);
   }  else if (command == '/_listactive') {
@@ -172,8 +259,9 @@ function handleSlackInteractiveMessages (payload){
 }
 
 
-
+//****************************************
 // slack message functions
+//****************************************
 
 function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessage, access_token, postType, sheet_log){
   
@@ -277,8 +365,9 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
 }
 
 
-
+//****************************************
 // miscelaneous functions
+//****************************************
 
 function indexedObjectFromArray (arr) {
   var obj={};
