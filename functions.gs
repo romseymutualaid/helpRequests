@@ -1,4 +1,11 @@
+//****************************************
 // sheet functions
+//****************************************
+
+function getUniqueIDbyRowNumber(row, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX){
+  var uniqueid = +row + UNIQUEID_START_VAL - UNIQUEID_START_ROWINDEX; // assumes: tracking sheet rows are sorted by contiguous increasing request-number
+  return(uniqueid);
+}
 
 function getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX){
   var row = +uniqueid - UNIQUEID_START_VAL +UNIQUEID_START_ROWINDEX; // assumes: tracking sheet rows are sorted by contiguous increasing request-number
@@ -28,25 +35,395 @@ function stripStartingNumbers(s){
 //}
 
 
+
+//****************************************
 // slack command functions
+//****************************************
 
 function checkUniqueID (uniqueid){
-  // check that uniqueid does indeed match a 4-digit string
+  // checkUniqueID: check that uniqueid does indeed match a 4-digit string
+  
+  // load global variables
+  var globvar = globalVariables();
+  var mod_userid = globvar['MOD_USERID'];
+  var mention_mod = '<@'+mod_userid+'>';
+  
+  // initialise output object
+  var fail_msg = 'error: The request number `'+uniqueid+'` does not appear to be a 4-digit number as expected. '+
+                                           'Please specify a correct request number. Example: `/volunteer 1000`.';
+  var output = {code:false, msg:fail_msg};
+  
+  // personalise error message if uniqueid was not specified at all
+  if (uniqueid == ''){
+    output.msg = ('error: You must provide the request number present in the help request message (example: `/volunteer 9999`). '+
+                                           'You appear to have not typed any number. If the issue persists, contact ' + mention_mod + '.');
+    return output;
+  }
+  
+  // regexp match
   var re = new RegExp("^[0-9]{4}$"); // regexp match for user_id in mention string
   var uniqueid_re = re.exec(uniqueid); // RegExp.exec returns array. First element is matched string, following elements are matched groupings.
-  if (!uniqueid_re){ // failed regex
-    return false;
+  if (uniqueid_re){ // regex function did not fail
+    var uniqueid_re_match = uniqueid_re[0];
+    if (uniqueid_re_match != ''){ // and regex function returned a match
+      output.code=true;
+      output.msg='';
+    } 
   }
-  var uniqueid_re_match = uniqueid_re[0];
-  if (uniqueid_re_match == ''){ // no match
-    return false;
+  
+  return output;
+}
+
+function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
+  // checkCommandValidity: Checks the following items and returns an output.code (true or false) and output.message (string) accordingly...
+  // 1. has script found the correct row in spreadsheet (i.e. uniqueid consistency)?
+  // 2. is command sent from the correct channel?
+  // 3. is command sent by the appropriate user?
+  // 4. is command allowed given the request's current status?
+  
+  
+  
+//  // test inputs
+//  cmd='done';
+//  rowvalues=['1019',
+//            '26/04/2020 18:09:42',
+//            'test case 1',
+//            '07 111 222 333',
+//            'stockwell street',
+//            'Is disabled and may be home alone',
+//            'Prescription pickup',
+//            '26/04/2020',
+//             '',
+//            'testrequests-jb',
+//            'General supply shopping',
+//            'jb',
+//             '',
+//            'ToClose?',
+//            'https://romseymutualaid.slack.com/archives/C012HGQEJMB/p1587922239000500',
+//            '1587922239.000500',
+//             '',
+//             '',
+//            'C012HGQEJMB',
+//             'UVDT8G78T',
+//            '42',
+//            '01/05/2020 19:06:54',
+//            'New volunteer required to bring champagne to a Dr located firmly on the sofa.',
+//            ''];
+//  uniqueid='1019';
+//  userid='UVDT8G78T';
+//  channelid='C012HGQEJMB';
+  
+  
+  /// define variables
+  var globvar = globalVariables();
+  var mod_userid = globvar['MOD_USERID'];
+  var mention_mod = '<@'+mod_userid+'>';
+  
+  var tracking_sheet_col_order = globvar['SHEET_COL_ORDER'];
+  var tracking_sheet_ncol = tracking_sheet_col_order.length;
+  var tracking_sheet_col_index = indexedObjectFromArray(tracking_sheet_col_order); // make associative object to easily get colindex from colname  
+  
+  var colindex_uniqueid = tracking_sheet_col_index['uniqueid'];
+  var colindex_channelid = tracking_sheet_col_index['channelid']; 
+  var colindex_phone = tracking_sheet_col_index['requesterContact'];
+  var colindex_status = tracking_sheet_col_index['requestStatus']; 
+  var colindex_volunteerName = tracking_sheet_col_index['slackVolunteerName']; 
+  var colindex_volunteerID = tracking_sheet_col_index['slackVolunteerID']; 
+  var colindex_slackts = tracking_sheet_col_index['slackTS']; 
+  var colindex_slacktsurl = tracking_sheet_col_index['slackURL'];
+  var colindex_channel = tracking_sheet_col_index['channel']; 
+  var colindex_requestername = tracking_sheet_col_index['requesterName'];
+  var colindex_address = tracking_sheet_col_index['requesterAddr'];
+  var colindex_completionCount = tracking_sheet_col_index['completionCount'];
+  var colindex_completionLastTimestamp = tracking_sheet_col_index['completionLastTimestamp']; 
+  var colindex_completionLastDetails = tracking_sheet_col_index['completionLastDetails'];  
+  
+  var request_formatted = '<' + row.slackURL + '|request ' + row.uniqueid + '> (' + row.requesterName + ', ' + row.requesterAddr + ')';
+  
+  var cmd_state_machine={ // this is the finite state machine object, which contains the return messages and codes for every possible {command,status} combination
+      command:{
+        "done":{
+          status:{
+            "Sent|FailSend|Re-open":{
+              returnCode:false,
+              returnMsg:'error: You cannot complete '+request_formatted+' because it is yet to be assigned. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
+            },
+            "Escalated|Signposted":{
+              returnCode:false,
+              returnMsg:'error: You cannot complete '+request_formatted+' because it is permanently closed. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
+            },
+            "Assigned|Ongoing|ToClose\\?|Closed":{
+              returnCode:true,
+              returnMsg:'You have confirmed completing '+request_formatted+'. '+
+                                         'I\'ve notified volunteers in the help request thread and sent your form submission to the request coordinator on-duty.'
+            }
+          }  
+        },
+        "volunteer":{
+          status:{
+            "Sent|Re-open":{
+              returnCode:true,
+              returnMsg:volunteerSuccessReply(
+                row.slackURL, 
+                row.uniqueid, 
+                row.requesterName, 
+                mention_mod, 
+                row.requesterAddr, 
+                row.requesterContact,
+                row.householdSit,
+                true
+              )
+            },
+            "Assigned|Ongoing":{
+              returnCode:false,
+              returnMsg:volunteerSuccessReply(
+                row.slackURL, 
+                row.uniqueid, 
+                row.requesterName, 
+                mention_mod, 
+                row.requesterAddr, 
+                row.requesterContact,
+                row.householdSit,
+                false
+              )
+            },
+            "FailSend|ToClose\\?|Closed|Escalated|Signposted":{
+              returnCode:false,
+              returnMsg:'Sorry, '+request_formatted+' is not available. Its status is ' + row.requestStatus + '. '+
+                                             'Volunteer is <@' + row.slackVolunteerID + '>. Type `/list` to list all the available requests in this channel. '+
+                                             'If you think there is a mistake, please contact ' + mention_mod + '.'
+            }
+          }
+        },
+        "cancel":{
+          status:{
+            "Sent|FailSend|Re-open":{
+              returnCode:false,
+              returnMsg:'error: You cannot cancel '+request_formatted+' because it is yet to be assigned. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
+            },
+            "Escalated|Signposted|Closed":{
+              returnCode:false,
+              returnMsg:'You were signed up on '+request_formatted+', but it\'s now closed. We therefore won\'t remove you. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
+            },
+            "Assigned|Ongoing|ToClose\\?":{
+              returnCode:true,
+              returnMsg:'You just cancelled your offer for help for '+request_formatted+'. I\'ve notified the channel.'
+            }
+          }
+        }
+      }
+    };
+  
+  
+ // initialise output object
+  var output = {code:false, msg:''};
+  
+  
+  // check that uniqueid of the row and the requested uniqueid match
+  if (row.uniqueid != uniqueid){
+    if (row.uniqueid == ''){ // uniqueid points to empty row --> suggests wrong number was entered
+      output.msg = ('error: I couldn\'t find the request number `' + uniqueid + '`. Did you type the right number? '+
+                                             'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, please contact ' + mention_mod + '.');
+    } else { // uniqueid points to non-empty row but mismatch --> this is a spreadsheet issue. suggests rows are not sorted by uniqueid.
+      output.msg = ('error: There is a problem in the spreadsheet on the server. You asked for request-number '+uniqueid +', but I could only find request-number '+ row.uniqueid+'. '+
+            'Please can you notify a developer and ask ' + mention_mod + ' for assistance?');
+    }
+    return(output);
+  }
+  
+  // check that request belongs to the channel from which command was sent
+  if (channelid !== row.channelid) {
+    output.msg = ('error: The request ' + uniqueid + ' does not appear to belong to the channel you are writing from. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, please contact ' + mention_mod + '.');
+    return(output);
+  }
+  
+  // check that user that sent the request has the right to proceed
+  if (cmd==='volunteer'){
+    if (row.slackVolunteerID!=='' && userid!==row.slackVolunteerID){ // volunteerid is not blank and user that sent command does not match volunteerID
+      output.msg = ('error: Your command failed because '+request_formatted+' is taken by someone else (<@' + row.slackVolunteerID + '>). '+
+                                           'Type `/list` to list all the available requests in this channel. If you think there is a mistake, please contact ' + mention_mod + '.');
+      return(output);
+    }
+  } else if (cmd==='cancel' || cmd==='done'){
+    if (row.slackVolunteerID === '') { // no one is assigned
+      output.msg = ('error: Your command failed because '+request_formatted+' is yet to be assigned. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.');
+      return(output);
+    } else if (row.slackVolunteerID !== '' && userid!==row.slackVolunteerID && userid!==mod_userid) { // someone else than userid is assigned, and userid is not moderator
+      output.msg = ('error: Your command failed because '+request_formatted+' is taken by someone else (<@' + row.slackVolunteerID + '>). '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.');
+      return(output);
+    }
+  }
+  
+  
+  // check command is compatible with request status  
+  var statusBranchVal;
+  Object.keys(cmd_state_machine.command[cmd].status).forEach(function(key,index) { // iterate over the object properties of cmd_state_machine.command[cmd].status
+    // key: the name of the object key
+    var status_match = new RegExp(key).exec(row.requestStatus); // regexp match row.requestStatus with key
+    if (status_match || status_match==''){ // status matches key: this is the cmd_state_machine branch we want to take
+      statusBranchVal = key;
+    }  
+  });
+  if (!statusBranchVal){ // if no branch match was found
+    output.msg = 'error: There is a problem in the spreadsheet on the server. I couldn\'t recognise the current status value "'+row.requestStatus+'" of request '+uniqueid+'.'+
+            'Please can you notify a developer and ask ' + mention_mod + ' for assistance?';
   } else{
-    return true;
+    output.msg = cmd_state_machine.command[cmd].status[statusBranchVal].returnMsg;
+    output.code = cmd_state_machine.command[cmd].status[statusBranchVal].returnCode;
+  }
+  
+  return output;
+}
+
+
+function handleSlackCommands (par){
+//  handle slack slash command POST requests
+  
+  
+  /// declare variables
+  var globvar = globalVariables();
+  var teamid_true =  globvar['TEAM_ID'];
+  var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request   
+  
+  // ensure doPost request originates from our slack app - verification token method
+  // note: This is not as secure as using the signed secret method (https://api.slack.com/docs/verifying-requests-from-slack) because the token is not uniquely hashed and can be intercepted. 
+  // note-continued: Think of improving this in the future.
+  var token = par.token;
+  
+  if(!token_true){ // check that token_true has been set in script properties
+    return ContentService.createTextOutput('error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.');
+  }
+  if (token !== token_true) {
+    return ContentService.createTextOutput('error: Invalid token '+token+' . The command will not run. Please contact the web app developer.');
+  }
+  
+  // extract relevant data from message body
+  var workspace = par.team_id;
+  var command = par.command;
+  var channelid = par.channel_id;
+  var userid = par.user_id;
+  var username = par.user_name;
+  var args = par.text;
+  var response_url = par.response_url;
+  
+  // check request originates from our slack workspace
+  if (workspace != teamid_true){
+    return ContentService.createTextOutput('error: You are sending your command from an unauthorised slack workspace.');
+  }
+  
+  // process command field. 
+  // note: Slack has a 3 second timeout on client end. This has not been an issue yet, but with database volume increase, function execution times may increase and lead to timeouts. 
+  // note-continued: A fix would be to return an acknowledgement message to client directly without actually executing the function. 
+  // note-continued: The function should be somehow queued for execution and par.response_url is passed as an extra argument which allows the slack acknowledgment message to be updated. 
+  // note-continued : I have tried delayed function executes with time-delay triggers but that was not appropriate as time-delay triggers - upon creation - have a 1 min queue time before triggering. Too long.
+  // note-continued : A workaround could be to queue commands with an automatic submission to a dedicated form (see https://stackoverflow.com/questions/54809366/how-to-send-delayed-response-slack-api-with-google-apps-script-webapp?rq=1). 
+  // note-continued : The form responses must be linked to the spreadsheet. Then, the onFormSubmit installed trigger may catch the submissions and execute the relevant functions. This is faster than time-delayed triggers, but can still take several seconds. 
+  // note-continued : For now I have avoided any delayed execution and optimised the function execution times to ensure that a return message arrives within the 3 second timeout window.
+  if (command == '/_volunteer'){
+    return volunteer(args, channelid, userid, username);      
+  } else if (command == '/_volunteer2'){
+    return volunteer2(args, channelid, userid, username);      
+  } else if (command == '/_assign'){
+    return assign(args,channelid, userid);      
+  } else if (command == '/_cancel') {
+    return cancel(args, channelid, userid);
+  } else if (command == '/_done') {
+    return contentServerJsonReply(done_send_modal(args, channelid, userid, response_url, par.trigger_id));
+  } else if (command == '/_list') {
+    return list(channelid);
+  }  else if (command == '/_listactive') {
+    return listactive(channelid);
+  } else if (command == '/_listall') {
+    return listall(channelid);
+  } else if (command == '/_listmine') {
+    return listmine(channelid,userid);
+  } else if (command == '/_listallmine') {
+    return listallmine(channelid,userid);
+  } else if (command == '/jb_v'){
+    return volunteer(args, channelid, userid, username);      
+  } else if (command == '/jb_c') {
+    return cancel(args, channelid, userid);
+  } else if (command == '/jb_d') {
+    return contentServerJsonReply(done_send_modal(args, channelid, userid, response_url, par.trigger_id)); // clarify request by opening a modal in slack (with trigger_id) for user to fill
+  // IB dev switch            
+  } else if (command == '/ib_v'){            
+    return volunteer(args, channelid, userid, username);                  
+  } else if (command == '/ib_c') {            
+    return cancel(args, channelid, userid);            
+  } else if (command == '/ib_d') {            
+    return contentServerJsonReply(done_send_modal(args, channelid, userid, response_url, par.trigger_id));            
+  // Default
+  } else {
+    return ContentService.createTextOutput('error: Sorry, the `' + command + '` command is not currently supported.');
   }
 }
 
 
+function handleSlackInteractiveMessages (payload){
+  // handle interactive message POST requests from slack
+
+  // declare variables
+  var globvar = globalVariables();
+  var teamid_true =  globvar['TEAM_ID'];
+  var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request     
+  
+  // ensure doPost request originates from our slack app - verification token method
+  // note: This is not as secure as using the signed secret method (https://api.slack.com/docs/verifying-requests-from-slack) because the token is not uniquely hashed and can be intercepted. 
+  // note-continued: Think of improving this in the future.
+  var token = payload.token;
+  if(!token_true){ // check that token_true has been set in script properties
+//    return ContentService.createTextOutput('error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.');
+    return ContentService.createTextOutput();
+  }  
+  if (token !== token_true) {
+//    return ContentService.createTextOutput('error: Invalid token '+token+' . The command will not run. Please contact the web app developer.');
+    return ContentService.createTextOutput();
+  }
+  
+  
+  // extract relevant data from message body
+  var workspace = payload.team.id;
+  var userid = payload.user.id;
+//  var viewid = payload.view.id;
+  
+  
+  // check request originates from our slack workspace
+  if (workspace != teamid_true){
+//    return ContentService.createTextOutput('error: You are sending your command from an unauthorised slack workspace.');
+    return ContentService.createTextOutput();
+  }
+  
+  // proceed depending on the type of interactive message received
+  if (payload.type === "view_submission"){ // modal submission
+    
+    var view = payload.view;
+    
+    if (view.callback_id === "done_clarify"){ // /done modal
+      done_process_modal(userid,view);   
+      return ContentService.createTextOutput(); // an empty HTTP 200 OK message is required for modal to close on slack client end.
+    } else {
+      // modal callback_id was not recognised
+      var out_message = 'I don\'t recognise the form identifier that was submitted. This is a bug, please can you notify a developer?';
+      return ContentService.createTextOutput(out_message);
+    }
+  } else{
+    // interactive element type was not recognised
+    var out_message = 'I\'m not capable of reading anything else but slack modals. This is a bug, please can you notify a developer?';    
+    return ContentService.createTextOutput(out_message);
+  }
+}
+
+
+//****************************************
 // slack message functions
+//****************************************
 
 function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessage, access_token, postType, sheet_log){
   
@@ -150,8 +527,9 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
 }
 
 
-
+//****************************************
 // miscelaneous functions
+//****************************************
 
 function indexedObjectFromArray (arr) {
   var obj={};

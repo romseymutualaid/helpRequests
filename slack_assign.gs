@@ -15,6 +15,8 @@ function assign(args, channelid, userid) {
   var uniqueid = args[0];
   var re = new RegExp("<@(U[A-Z0-9]+)\\|?(.*)>"); // regexp match for user_id and user_name in mention string
   var user_re = re.exec(args[1]); // RegExp.exec returns array. First element is matched string, following elements are matched groupings.
+  
+  // check user_re argument
   if (user_re === null){
     return ContentService.createTextOutput('error: I did not recognise the user you specified. Please specify the user by their mention name. Example: `/assign 1000 <@' + mod_userid  + '>`.');
   }

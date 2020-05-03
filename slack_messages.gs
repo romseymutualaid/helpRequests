@@ -10,11 +10,19 @@ function contentServerJsonReply(message) {
 }
 
 
-function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_requestCoord, address, contactDetails, householdSituation) {
+function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_requestCoord, address, contactDetails, householdSituation,isFirstMessage) {
   var householdMessage = "";
   if (householdSituation != ""){
-    householdMessage = "\nTheir household situation is " + householdSituation + ".\n"
+    householdMessage = "\nTheir household situation is: " + householdSituation + ".\n"
   }
+  
+  // personalise text depending on whether this is the first time volunteer sees the message or not
+  if (isFirstMessage){
+    var introTxt = ":nerd_face::tada: You signed up for <" + slackurl + "|request " + uniqueid + ">."
+  } else{
+    var introTxt = ":nerd_face::tada: You are still signed up for <" + slackurl + "|request " + uniqueid + ">."
+  }
+  
   // Json Template for replying to successful volunteer messages.
   return JSON.stringify({
 	"blocks": [
@@ -22,7 +30,7 @@ function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_reques
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": "You signed up for <" + slackurl + "|request " + uniqueid + "> "
+				"text": introTxt
 			}
 		},
 		{
@@ -39,7 +47,7 @@ function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_reques
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": ":tada:. \nWhen you are done, type `/done " + uniqueid + "`"
+				"text": "When you are done, type `/done " + uniqueid + "`"
 			}
 		},
 		{
@@ -60,7 +68,7 @@ function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_reques
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": "If you need any help, contact " + mention_requestCoord + "."
+				"text": "If you need any help, please contact " + mention_requestCoord + "."
 			}
 		}
 	]      
