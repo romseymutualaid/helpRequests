@@ -204,14 +204,6 @@ function done(uniqueid, channelid, userid, requestNextStatus, completionLastDeta
   // find requested row in sheet  
   var row = getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
   var rowvalues = sheet.getRange(row, 1, 1, tracking_sheet_ncol).getValues()[0];
-  if (rowvalues[colindex_uniqueid] != uniqueid){
-    if (rowvalues[colindex_uniqueid] == ''){ // uniqueid points to empty row --> suggests wrong number was entered
-      return ('error: I couldn\'t find the request number `' + uniqueid + '`. Did you type the right number? '+
-                                             'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, contact ' + mention_requestCoord + '.');
-  } else { // uniqueid points to non-empty row but mismatch --> this is a spreadsheet issue. suggests rows are not sorted by uniqueid.
-    return (row +' '+ rowvalues[colindex_uniqueid-1] + ' error: Request number lookup failed on server end. Please notify ' + mention_requestCoord);
-    }
-  }
   
   // store fields as separate variables
   var channelid_true = rowvalues[colindex_channelid]; 
@@ -223,22 +215,11 @@ function done(uniqueid, channelid, userid, requestNextStatus, completionLastDeta
   var slack_ts = rowvalues[colindex_slackts];
   var completionCount = rowvalues[colindex_completionCount];
   
-  
-  // check that request belongs to the channel from which /done message was sent
-  if (channelid != channelid_true) {
-    return ('error: The request ' + uniqueid + ' does not appear to belong to the channel you are writing from. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel.  If the issue persists, contact ' + mention_requestCoord + '.');
+  // check command validity
+  var cmd_check = checkCommandValidity('done',rowvalues,uniqueid,userid,channelid);
+  if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
+    return(cmd_check.msg);
   }
-  
-  // check that request belongs to user
-  if (volunteerID == '') {
-    return ('error: You cannot complete <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') because it is yet to be assigned. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_requestCoord + '.');
-  } else if (volunteerID != '' && volunteerID != userid && userid!=mod_userid) {
-    return ('error: You cannot complete <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') because it is taken by someone else (<@' + volunteerID + '>). '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_requestCoord + '.');
-  }
-    
     
   // reply to slack thread to confirm done instance (chat.postMessage method)
   var out_message = 'Thanks for helping out <@' + volunteerID + '>! :nerd_face:';
@@ -283,8 +264,6 @@ function done(uniqueid, channelid, userid, requestNextStatus, completionLastDeta
   sheet.getRange(row, colindex_completionLastDetails+1).setValue(completionLastDetails); // update completionLastDetails
   sheet.getRange(row, colindex_completionLastTimestamp+1).setValue(new Date()); // update completionLastTimestamp to current time
   
-  
-  return ('You have confirmed completing <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). '+
-                                         'I\'ve notified volunteers in the help request thread and sent your form submission to the request coordinator on-duty.');
+  return(cmd_check.msg);
   
 }

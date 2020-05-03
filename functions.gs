@@ -46,25 +46,98 @@ function checkUniqueID (uniqueid){
   }
 }
 
-function checkCommandValidity (cmd,rowvect,userid,modid,channelid){
+function checkCommandValidity (cmd,rowvalues,uniqueid,userid,channelid){
+  // checkCommandValidity: Checks the following items and returns an output.code (true or false) and output.message (string) accordingly...
+  // 1. has script found the correct row in spreadsheet (i.e. uniqueid consistency)?
+  // 2. is command sent from the correct channel?
+  // 3. is command sent by the appropriate user?
+  // 4. is command allowed given the request's current status?
   
-  var mention_mod = '<@'+modid+'>';
   
-  var cmd_state_machine={
-      cmd:{
+  
+//  // test inputs
+//  cmd='done';
+//  rowvalues=['1019',
+//            '26/04/2020 18:09:42',
+//            'test case 1',
+//            '07 111 222 333',
+//            'stockwell street',
+//            'Is disabled and may be home alone',
+//            'Prescription pickup',
+//            '26/04/2020',
+//             '',
+//            'testrequests-jb',
+//            'General supply shopping',
+//            'jb',
+//             '',
+//            'ToClose?',
+//            'https://romseymutualaid.slack.com/archives/C012HGQEJMB/p1587922239000500',
+//            '1587922239.000500',
+//             '',
+//             '',
+//            'C012HGQEJMB',
+//             'UVDT8G78T',
+//            '42',
+//            '01/05/2020 19:06:54',
+//            'New volunteer required to bring champagne to a Dr located firmly on the sofa.',
+//            ''];
+//  uniqueid='1019';
+//  userid='UVDT8G78T';
+//  channelid='C012HGQEJMB';
+  
+  
+  /// define variables
+  var globvar = globalVariables();
+  var mod_userid = globvar['MOD_USERID'];
+  var mention_mod = '<@'+mod_userid+'>';
+  
+  var log_sheetname = globvar['LOG_SHEETNAME'];
+  var tracking_sheetname = globvar['TRACKING_SHEETNAME'];
+  
+  var tracking_sheet_col_order = globvar['SHEET_COL_ORDER'];
+  var tracking_sheet_ncol = tracking_sheet_col_order.length;
+  var tracking_sheet_col_index = indexedObjectFromArray(tracking_sheet_col_order); // make associative object to easily get colindex from colname  
+  
+  var colindex_uniqueid = tracking_sheet_col_index['uniqueid'];
+  var colindex_channelid = tracking_sheet_col_index['channelid']; 
+  var colindex_phone = tracking_sheet_col_index['requesterContact'];
+  var colindex_status = tracking_sheet_col_index['requestStatus']; 
+  var colindex_volunteerName = tracking_sheet_col_index['slackVolunteerName']; 
+  var colindex_volunteerID = tracking_sheet_col_index['slackVolunteerID']; 
+  var colindex_slackts = tracking_sheet_col_index['slackTS']; 
+  var colindex_slacktsurl = tracking_sheet_col_index['slackURL'];
+  var colindex_channel = tracking_sheet_col_index['channel']; 
+  var colindex_requestername = tracking_sheet_col_index['requesterName'];
+  var colindex_address = tracking_sheet_col_index['requesterAddr'];
+  var colindex_completionCount = tracking_sheet_col_index['completionCount'];
+  var colindex_completionLastTimestamp = tracking_sheet_col_index['completionLastTimestamp']; 
+  var colindex_completionLastDetails = tracking_sheet_col_index['completionLastDetails'];  
+  
+  var channelid_true = rowvalues[colindex_channelid]; 
+  var requesterName = rowvalues[colindex_requestername];
+  var address = rowvalues[colindex_address];
+  var slackurl = rowvalues[colindex_slacktsurl];
+  var status = rowvalues[colindex_status]; 
+  var volunteerID = rowvalues[colindex_volunteerID];
+  var slack_ts = rowvalues[colindex_slackts];
+  var completionCount = rowvalues[colindex_completionCount];
+  var contactDetails = rowvalues[colindex_phone];   // private data
+  
+  var cmd_state_machine={ // this is the finite state machine object, which contains the return messages and codes for every possible {command,status} combination
+      command:{
         "done":{
           status:{
             "Sent|FailSend|Re-open":{
               returnCode:false,
               returnMsg:'error: You cannot complete <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') because it is yet to be assigned. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_mod + '.'
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
             },
             "Escalated|Signposted":{
               returnCode:false,
               returnMsg:'error: You cannot complete <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') because it is permanently closed. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_mod + '.'
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
             },
-            "Assigned|Ongoing|ToClose\?|Closed":{
+            "Assigned|Ongoing|ToClose\\?|Closed":{
               returnCode:true,
               returnMsg:'You have confirmed completing <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). '+
                                          'I\'ve notified volunteers in the help request thread and sent your form submission to the request coordinator on-duty.'
@@ -78,20 +151,20 @@ function checkCommandValidity (cmd,rowvect,userid,modid,channelid){
               returnMsg:':nerd_face: Thank you for volunteering! You signed up for <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). '+
                                          'The Requester\'s contact details are ' + contactDetails + ':tada:.\nWhen you are done, type `/done ' + uniqueid + '`.\n'+
                                          'To cancel your help offer, type `/cancel '+ uniqueid + '`.\nTo see this message again, type `/volunteer ' + uniqueid + '`.\n'+
-                                         'If you need any help, contact ' + mention_mod + '.'
+                                         'If you need any help, please contact ' + mention_mod + '.'
             },
             "Assigned|Ongoing":{
               returnCode:true,
               returnMsg:':nerd_face: You are still signed up for <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). '+
                                              'The Requester\'s contact details are ' + contactDetails + ':tada:.\nWhen you are done, type `/done ' + uniqueid + '`.\n'+
                                              'To cancel your help offer, type `/cancel '+ uniqueid + '`.\nTo see this message again, type `/volunteer ' + uniqueid + '`.\n'+
-                                             'If you need any help, contact ' + mention_mod + '.'
+                                             'If you need any help, please contact ' + mention_mod + '.'
             },
-            "FailSend|Assigned|Ongoing|ToClose\?|Closed|Escalated|Signposted":{
+            "FailSend|Assigned|Ongoing|ToClose\\?|Closed|Escalated|Signposted":{
               returnCode:false,
               returnMsg:'Sorry, <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') is not available. Its status is ' + status + '. '+
                                              'Volunteer is <@' + volunteerID + '>. Type `/list` to list all the available requests in this channel. '+
-                                             'If you think there is a mistake, contact ' + mention_mod + '.'
+                                             'If you think there is a mistake, please contact ' + mention_mod + '.'
             }
           }
         },
@@ -100,12 +173,12 @@ function checkCommandValidity (cmd,rowvect,userid,modid,channelid){
             "Sent|FailSend|Re-open":{
               returnCode:false,
               returnMsg:'error: You cannot cancel <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') because it is yet to be assigned. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_mod + '.'
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
             },
-            "Escalated|Signposted|ToClose\?|Closed":{
+            "Escalated|Signposted|ToClose\\?|Closed":{
               returnCode:false,
               returnMsg:'You were signed up on <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '), but it\'s now closed. We therefore won\'t remove you. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, contact ' + mention_mod + '.'
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
             },
             "Assigned|Ongoing":{
               returnCode:true,
@@ -117,15 +190,67 @@ function checkCommandValidity (cmd,rowvect,userid,modid,channelid){
     };
   
   
-  // check request belongs to channelid
-  
-  // check requests userid is {volunteer:{'' or userid}, cancel:{userid,modid}, done:{userid,modid}}
-  
-  // check request status
+ // initialise output object
+  var output = {code:false, msg:''};
   
   
-  // return {returnCode, returnMsg}
+  // check that uniqueid of the row and the requested uniqueid match
+  if (rowvalues[colindex_uniqueid] != uniqueid){
+    if (rowvalues[colindex_uniqueid] == ''){ // uniqueid points to empty row --> suggests wrong number was entered
+      output.msg = ('error: I couldn\'t find the request number `' + uniqueid + '`. Did you type the right number? '+
+                                             'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, please contact ' + mention_mod + '.');
+    } else { // uniqueid points to non-empty row but mismatch --> this is a spreadsheet issue. suggests rows are not sorted by uniqueid.
+      output.msg = ('error: There is a problem in the spreadsheet on the server. You asked for request-number '+uniqueid +', but I could only find request-number '+ rowvalues[colindex_uniqueid]+'. '+
+            'Please can you notify a developer and ask ' + mention_mod + ' for assistance?');
+    }
+    return(output);
+  }
   
+  // check that request belongs to the channel from which command was sent
+  if (channelid !== channelid_true) {
+    output.msg = ('error: The request ' + uniqueid + ' does not appear to belong to the channel you are writing from. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, please contact ' + mention_mod + '.');
+    return(output);
+  }
+  
+  // check that user that sent the request has the right to proceed
+  if (cmd==='volunteer'){
+    if (volunteerID!=='' && userid!==volunteerID){ // volunteerid is not blank and user that sent command does not match volunteerID
+      output.msg = ('error: Your command failed because <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') is taken by someone else (<@' + volunteerID + '>). '+
+                                           'Type `/list` to list all the available requests in this channel. If you think there is a mistake, please contact ' + mention_mod + '.');
+      return(output);
+    }
+  } else if (cmd==='cancel' || cmd==='done'){
+    if (volunteerID === '') { // no one is assigned
+      output.msg = ('error: Your command failed because <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') is yet to be assigned. '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.');
+      return(output);
+    } else if (volunteerID !== '' && userid!==volunteerID && userid!==mod_userid) { // someone else than userid is assigned, and userid is not moderator
+      output.msg = ('error: Your command failed because <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') is taken by someone else (<@' + volunteerID + '>). '+
+                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.');
+      return(output);
+    }
+  }
+  
+  
+  // check command is compatible with request status  
+  var statusBranchVal;
+  Object.keys(cmd_state_machine.command[cmd].status).forEach(function(key,index) { // iterate over the object properties of cmd_state_machine.command[cmd].status
+    // key: the name of the object key
+    var status_match = new RegExp(key).exec(status); // regexp match status with key
+    if (status_match || status_match==''){ // status matches key: this is the cmd_state_machine branch we want to take
+      statusBranchVal = key;
+    }  
+  });
+  if (!statusBranchVal){ // if no branch match was found
+    output.msg = 'error: There is a problem in the spreadsheet on the server. I couldn\'t recognise the current status value "'+status+'" of request '+uniqueid+'.'+
+            'Please can you notify a developer and ask ' + mention_mod + ' for assistance?';
+  } else{
+    output.msg = cmd_state_machine.command[cmd].status[statusBranchVal].returnMsg;
+    output.code = cmd_state_machine.command[cmd].status[statusBranchVal].returnCode;
+  }
+  
+  return output;
 }
 
 
