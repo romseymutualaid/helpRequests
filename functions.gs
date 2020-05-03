@@ -5,6 +5,15 @@ function getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX)
   return(row);
 }
 
+
+function stripStartingNumbers(s){
+  // Strip starting numbers from a string.
+  // Use to remove house numbers when posting publically.
+  var re = new RegExp(/^[\s\d]+/);
+  return s.replace(re, "");
+}
+
+
 //function getRowByColVal(sheetvalues, colindex, value){    
 //    var row;
 //    for (var i = 0; i < sheetvalues.length ; i++)
@@ -59,7 +68,7 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
   
   var uniqueid = sheet.getRange(row, colindex_uniqueid+1).getValue();
   var requesterName = sheet.getRange(row, colindex_requestername+1).getValue();
-  var address = sheet.getRange(row, colindex_address+1).getValue();
+  var address = stripStartingNumbers(sheet.getRange(row, colindex_address+1).getValue());
   var requestType = sheet.getRange(row, colindex_requestType+1).getValue();
   var requestDateUnformatted = new Date (sheet.getRange(row, colindex_requestDate+1).getValue());
   var requestDate = requestDateUnformatted.getDate() + '/' + (requestDateUnformatted.getMonth() + 1) +'/'+ requestDateUnformatted.getFullYear( ); // DD/MM/YYYY

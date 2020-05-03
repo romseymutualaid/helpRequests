@@ -69,6 +69,14 @@ function doPost(e) { // catches slack slash commands
       return cancel(args, channelid, userid);
     } else if (command == '/jb_d') {
       return done(args, channelid, userid);
+    // IB dev switch
+    } else if (command == '/ib_v'){
+      return volunteer(args, channelid, userid, username);      
+    } else if (command == '/ib_c') {
+      return cancel(args, channelid, userid);
+    } else if (command == '/ib_d') {
+      return done(args, channelid, userid);
+    // Default
     } else {
       return ContentService.createTextOutput('error: Sorry, the `' + command + '` command is not currently supported.');
     }
