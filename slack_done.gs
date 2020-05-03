@@ -51,7 +51,7 @@ function done(uniqueid, channelid, userid){
   var sheet = spreadsheet.getSheetByName(tracking_sheetname);
   
   // find requested row in sheet  
-  var row = getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
+  var row = getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
   var rowvalues = sheet.getRange(row, 1, 1, tracking_sheet_ncol).getValues()[0];
   if (rowvalues[colindex_uniqueid] != uniqueid){
     if (rowvalues[colindex_uniqueid] == ''){ // uniqueid points to empty row --> suggests wrong number was entered

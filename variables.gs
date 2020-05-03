@@ -39,9 +39,7 @@ function globalVariables(){
     MACHINE_WRITABLE_COLS: [
                       "commentsForSlack",
                       "requestStatus",
-                      "slackURL",
                       "slackTS",
-                      "commentsForCoordinator",
                       "slackVolunteerName",
                       "channelid",
                       "slackVolunteerID"],
