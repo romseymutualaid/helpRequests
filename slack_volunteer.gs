@@ -183,7 +183,7 @@ function volunteer2 (uniqueid, channelid, userid, username){
 //     return ContentService.createTextOutput('error: I couldn\'t find the request number `' + uniqueid + '`. Did you type the right number?'+
 //  ' Type `/list` to list all the available requests in this channel. If the issue persists, contact ' + mention_requestCoord + '.');
 //  }
-  var row = getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
+  var row = getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
 //  var row = +uniqueid - 1000 +2;
   var rowvalues = sheet.getRange(row, 1, 1, tracking_sheet_ncol).getValues()[0];
   if (rowvalues[colindex_uniqueid] != uniqueid){

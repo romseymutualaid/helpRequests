@@ -26,14 +26,14 @@ class TrackingSheetWrapper {
   getRowByUniqueID(id){
     // Returns a row object based on uniqueid.
     return this.getRowByRowNumber(
-      getRowByUniqueID(id, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX));
+      getRowNumberByUniqueID(id, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX));
   }
   
   writeRow(row){
     // Writes a row object to the tracking sheet based on it's unique id.
     // "row" needs to contain a uniqueid.
     // all other elements with keys in machine_writable_columns will be written to the sheet.
-    var rowNumber = getRowByUniqueID(row.uniqueid, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX);
+    var rowNumber = getRowNumberByUniqueID(row.uniqueid, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX);
     var existingRow = this.getRowByUniqueID(row.uniqueid);
     if (existingRow.uniqueid != row.uniqueid){
       throw "Attempting to write to row with unmatching uniqueids. id: " + row.uniqueid;
