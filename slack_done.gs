@@ -8,16 +8,10 @@ function done_send_modal(uniqueid, channelid, userid, response_url, slack_trigge
   var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API authentication token
   
   
-  // check that request uniqueid has been specified
-  if (uniqueid == ''){
-    return ('error: You must provide the request number present in the help request message (example: `/done 9999`). '+
-                                           'You appear to have not typed any number. If the issue persists, contact ' + mention_requestCoord + '.');
-  }
-  
-  // check that uniqueid does indeed match a 4-digit string
-  if (!checkUniqueID(uniqueid)){
-    return ('error: The request number `'+uniqueid+'` does not appear to be a 4-digit number as expected. '+
-                                           'Please specify a correct request number. Example: `/done 1000`.');
+  // check syntax of command arguments
+  var syntaxCheck_output = checkUniqueID(uniqueid)
+  if (!syntaxCheck_output.code){ // if syntax check returned an error, halt
+    return (syntaxCheck_output.msg);
   }
   
   // Send post request to Slack views.open API to open a modal for user  
@@ -138,10 +132,8 @@ function done_process_modal(userid,view){
   var return_message = UrlFetchApp.fetch(response_url, options).getContentText(); // Send post request to Slack response_url  
   
   // update log sheet
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet_log = spreadsheet.getSheetByName(log_sheetname);
-  var row_log = sheet_log.getLastRow();
-  sheet_log.getRange(row_log+1,1,1,5).setValues([[new Date(), uniqueid,'admin','confirmDoneUser',return_message]]);
+  var log_sheet = new LogSheetWrapper();
+  log_sheet.appendRow([new Date(), uniqueid, 'admin','confirmDoneUser', return_message]);
 }
 
 
@@ -150,86 +142,41 @@ function done(uniqueid, channelid, userid, requestNextStatus, completionLastDeta
   ///// COMMAND: /DONE
     
   
-  /// define variables
+  /// declare variables
   var globvar = globalVariables();
-  var mod_userid = globvar['MOD_USERID'];
+  
   var mention_requestCoord = globvar['MENTION_REQUESTCOORD'];
   
-  var log_sheetname = globvar['LOG_SHEETNAME'];
-  var tracking_sheetname = globvar['TRACKING_SHEETNAME'];
-  
+  var tracking_sheet = new TrackingSheetWrapper();
+  var log_sheet = new LogSheetWrapper();
+    
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
-  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API authentication token
+  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
   
-  var tracking_sheet_col_order = globvar['SHEET_COL_ORDER'];
-  var tracking_sheet_ncol = tracking_sheet_col_order.length;
-  var tracking_sheet_col_index = indexedObjectFromArray(tracking_sheet_col_order); // make associative object to easily get colindex from colname  
-  
-  var UNIQUEID_START_VAL = globvar['UNIQUEID_START_VAL'];
-  var UNIQUEID_START_ROWINDEX = globvar['UNIQUEID_START_ROWINDEX'];
-  
-  var colindex_uniqueid = tracking_sheet_col_index['uniqueid'];
-  var colindex_channelid = tracking_sheet_col_index['channelid']; 
-  var colindex_phone = tracking_sheet_col_index['requesterContact'];
-  var colindex_status = tracking_sheet_col_index['requestStatus']; 
-  var colindex_volunteerName = tracking_sheet_col_index['slackVolunteerName']; 
-  var colindex_volunteerID = tracking_sheet_col_index['slackVolunteerID']; 
-  var colindex_slackts = tracking_sheet_col_index['slackTS']; 
-  var colindex_slacktsurl = tracking_sheet_col_index['slackURL'];
-  var colindex_channel = tracking_sheet_col_index['channel']; 
-  var colindex_requestername = tracking_sheet_col_index['requesterName'];
-  var colindex_address = tracking_sheet_col_index['requesterAddr'];
-  var colindex_completionCount = tracking_sheet_col_index['completionCount'];
-  var colindex_completionLastTimestamp = tracking_sheet_col_index['completionLastTimestamp']; 
-  var colindex_completionLastDetails = tracking_sheet_col_index['completionLastDetails'];  
-  
-  
-  // check that request uniqueid has been specified
-  if (uniqueid == ''){
-    return ('error: You must provide the request number present in the help request message (example: `/done 9999`). '+
-                                           'You appear to have not typed any number. If the issue persists, contact ' + mention_requestCoord + '.');
+  // check syntax of command arguments
+  var syntaxCheck_output = checkUniqueID(uniqueid)
+  if (!syntaxCheck_output.code){ // if syntax check returned an error, halt
+    return (syntaxCheck_output.msg);
   }
   
-  // check that uniqueid does indeed match a 4-digit string
-  if (!checkUniqueID(uniqueid)){
-    return ('error: The request number `'+uniqueid+'` does not appear to be a 4-digit number as expected. '+
-                                           'Please specify a correct request number. Example: `/done 1000`.');
-  }
-  
-  
-  // load sheet
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = spreadsheet.getSheetByName(tracking_sheetname);
-  
-  // find requested row in sheet  
-  var row = getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
-  var rowvalues = sheet.getRange(row, 1, 1, tracking_sheet_ncol).getValues()[0];
-  
-  // store fields as separate variables
-  var channelid_true = rowvalues[colindex_channelid]; 
-  var requesterName = rowvalues[colindex_requestername];
-  var address = rowvalues[colindex_address];
-  var slackurl = rowvalues[colindex_slacktsurl];
-  var status = rowvalues[colindex_status]; 
-  var volunteerID = rowvalues[colindex_volunteerID];
-  var slack_ts = rowvalues[colindex_slackts];
-  var completionCount = rowvalues[colindex_completionCount];
+  // find requested row in sheet
+  var row = tracking_sheet.getRowByUniqueID(uniqueid);
   
   // check command validity
-  var cmd_check = checkCommandValidity('done',rowvalues,uniqueid,userid,channelid);
+  var cmd_check = checkCommandValidity('done',row,uniqueid,userid,channelid);
   if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return(cmd_check.msg);
+    return (cmd_check.msg);
   }
     
   // reply to slack thread to confirm done instance (chat.postMessage method)
-  var out_message = 'Thanks for helping out <@' + volunteerID + '>! :nerd_face:';
+  var out_message = 'Thanks for helping out <@' + row.slackVolunteerID + '>! :nerd_face:';
   var options = {
     method: "post",
     contentType: 'application/json; charset=utf-8',
     headers: {Authorization: 'Bearer ' + access_token},
     payload: JSON.stringify({text: out_message,
-                             thread_ts: slack_ts,
-                             channel: channelid})
+                             thread_ts: row.slackTS,
+                             channel: row.channelid})
   };
   // Send post request to Slack chat.postMessage API   
   var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText();
@@ -237,33 +184,34 @@ function done(uniqueid, channelid, userid, requestNextStatus, completionLastDeta
   // if post request was unsuccesful, do not update tracking sheet and return error
   var return_params = JSON.parse(return_message);
   if (return_params.ok !== true){ // message was not successfully posted to channel
+    
     // update log sheet
-    var sheet_log = spreadsheet.getSheetByName(log_sheetname);
-    var row_log = sheet_log.getLastRow();
-    sheet_log.getRange(row_log+1,1,1,5).setValues([[new Date(), uniqueid,'admin','confirmDone',return_message]]);
+    log_sheet.appendRow([new Date(), uniqueid,'admin','confirmDone',return_message]);
     
     // return error to user
     return ('error: Due to a technical incident, I was unable to process your command. Can you please ask ' + mention_requestCoord + ' to close the request manually?');
   }
   
   // update log sheet
-  var sheet_log = spreadsheet.getSheetByName(log_sheetname);
-  var row_log = sheet_log.getLastRow();
-  sheet_log.getRange(row_log+1,1,2,5).setValues([[new Date(), uniqueid,userid,'slackCommand','done'],
-                                                [new Date(), uniqueid,'admin','confirmDone',return_message]]);  
+  log_sheet.appendRow([new Date(), uniqueid,userid,'slackCommand','done']);
+  log_sheet.appendRow([new Date(), uniqueid, 'admin','confirmDone', return_message]);
   
   // update tracking sheet
   if ((requestNextStatus === '') || (requestNextStatus === 'unsure') || (requestNextStatus === 'toClose')){
-    sheet.getRange(row, colindex_status+1).setValue('ToClose?');
-  } else if (requestNextStatus === 'keepOpenNew'){
-    cancel(uniqueid, channelid, userid);
+    row.requestStatus = 'ToClose?';
   } else if (requestNextStatus === 'keepOpenAssigned'){
-    sheet.getRange(row, colindex_status+1).setValue('Assigned');
+    row.requestStatus = "Assigned";
   }
-  sheet.getRange(row, colindex_completionCount+1).setValue(+completionCount+1); // increment completionCount
-  sheet.getRange(row, colindex_completionLastDetails+1).setValue(completionLastDetails); // update completionLastDetails
-  sheet.getRange(row, colindex_completionLastTimestamp+1).setValue(new Date()); // update completionLastTimestamp to current time
+  row.completionCount = +row.completionCount +1;
+  row.completionLastDetails = completionLastDetails;
+  row.completionLastTimestamp = new Date();
+  tracking_sheet.writeRow(row);
   
+  if (requestNextStatus === 'keepOpenNew'){
+    cancel(uniqueid, channelid, userid);
+  }
+  
+  // return private message to user
   return(cmd_check.msg);
   
 }
