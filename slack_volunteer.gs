@@ -1,37 +1,16 @@
 function volunteer (uniqueid, channelid, userid, username){
   ///// COMMAND: /VOLUNTEER
   
-  
   /// declare variables
   var globvar = globalVariables();
   
   var mention_requestCoord = globvar['MENTION_REQUESTCOORD'];
   
-  var log_sheetname = globvar['LOG_SHEETNAME'];
-  var tracking_sheetname = globvar['TRACKING_SHEETNAME'];
-  
+  var tracking_sheet = new TrackingSheetWrapper();
+  var log_sheet = new LogSheetWrapper();
+    
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
   var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
-    
-  var tracking_sheet_col_order = globvar['SHEET_COL_ORDER'];
-  var tracking_sheet_ncol = tracking_sheet_col_order.length;
-  var tracking_sheet_col_index = indexedObjectFromArray(tracking_sheet_col_order); // make associative object to easily get colindex from colname  
-  
-  var UNIQUEID_START_VAL = globvar['UNIQUEID_START_VAL'];
-  var UNIQUEID_START_ROWINDEX = globvar['UNIQUEID_START_ROWINDEX'];
-  
-  var colindex_uniqueid = tracking_sheet_col_index['uniqueid'];
-  var colindex_channelid = tracking_sheet_col_index['channelid']; 
-  var colindex_phone = tracking_sheet_col_index['requesterContact'];
-  var colindex_status = tracking_sheet_col_index['requestStatus']; 
-  var colindex_volunteerName = tracking_sheet_col_index['slackVolunteerName']; 
-  var colindex_volunteerID = tracking_sheet_col_index['slackVolunteerID']; 
-  var colindex_slackts = tracking_sheet_col_index['slackTS']; 
-  var colindex_slacktsurl = tracking_sheet_col_index['slackURL'];
-  var colindex_channel = tracking_sheet_col_index['channel']; 
-  var colindex_requestername = tracking_sheet_col_index['requesterName'];
-  var colindex_address = tracking_sheet_col_index['requesterAddr'];
-  
   
   
   // check that request uniqueid has been specified
@@ -46,54 +25,38 @@ function volunteer (uniqueid, channelid, userid, username){
                                            'Please specify a correct request number. Example: `/volunteer 1000`.');
   }
   
-  // load sheet
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = spreadsheet.getSheetByName(tracking_sheetname);
-  
   // find requested row in sheet
-  var row = getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
-  var rowvalues = sheet.getRange(row, 1, 1, tracking_sheet_ncol).getValues()[0];
-  if (rowvalues[colindex_uniqueid] != uniqueid){
-    if (rowvalues[colindex_uniqueid] == ''){ // uniqueid points to empty row --> suggests wrong number was entered
+  var row = tracking_sheet.getRowByUniqueID(uniqueid);
+  if (row.uniqueid != uniqueid){
+    if (row.uniqueid == ''){ // uniqueid points to empty row --> suggests wrong number was entered
       return ContentService.createTextOutput('error: I couldn\'t find the request number `' + uniqueid + '`. Did you type the right number? '+
                                              'Type `/list` to list all the available requests in this channel. If the issue persists, contact ' + mention_requestCoord + '.');
     } else { // uniqueid points to non-empty row but mismatch --> this is a spreadsheet issue. suggests rows are not sorted by uniqueid.
-    return ContentService.createTextOutput('error: Request number lookup failed on server end. Please notify ' + mention_requestCoord);
+      return ContentService.createTextOutput('error: Request number lookup failed on server end. Please notify ' + mention_requestCoord);
     }
   }
-  
-  // store fields as separate variables
-  var channelid_true = rowvalues[colindex_channelid]; 
-  var requesterName = rowvalues[colindex_requestername];
-  var address = rowvalues[colindex_address];
-  var slackurl = rowvalues[colindex_slacktsurl];
-  var status = rowvalues[colindex_status]; 
-  var volunteerID = rowvalues[colindex_volunteerID];
-  var slack_ts = rowvalues[colindex_slackts];
-  var contactDetails = rowvalues[colindex_phone];   // private data
-  
     
   // check that request belongs to the channel from which /volunteer message was sent  
-  if (channelid != channelid_true) {
+  if (channelid != row.channelid) {
     return ContentService.createTextOutput('error: The request ' + uniqueid + ' does not appear to belong to the channel you are writing from. '+
                                            'Type `/list` to list all the available requests in this channel. If the issue persists, contact ' + mention_requestCoord + '.');
   }
    
   // manage scenario where request is no longer available (status is not {"" or "Sent"} or volunteerID!='') 
-  if ((status != "" && status != "Sent") || volunteerID != "") {
-    if (status == "Closed"){
-      return ContentService.createTextOutput('error: <' + slackurl + '|Request ' + uniqueid + '> (' + requesterName + ', ' + address + ') is closed. '+
-                                             'The volunteer assigned was <@' + volunteerID + '>. Type `/list` to list all the available requests in this channel. '+
+  if ((row.requestStatus != "" && row.requestStatus != "Sent") || row.slackVolunteerID != "") {
+    if (row.requestStatus == "Closed"){
+      return ContentService.createTextOutput('error: <' + row.slackURL + '|Request ' + uniqueid + '> (' + row.requesterName + ', ' + stripStartingNumbers(row.requesterAddr) + ') is closed. '+
+                                             'The volunteer assigned was <@' + row.slackVolunteerID + '>. Type `/list` to list all the available requests in this channel. '+
                                              'If you think there is a mistake, contact ' + mention_requestCoord + '.');
     }
-    else if ((status == "Assigned" || status == "Ongoing") && volunteerID == userid){
-      return ContentService.createTextOutput(':nerd_face: You are still signed up for <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). '+
-                                             'The Requester\'s contact details are ' + contactDetails + ':tada:.\nWhen you are done, type `/done ' + uniqueid + '`.\n'+
+    else if ((row.requestStatus == "Assigned" || row.requestStatus == "Ongoing") && row.slackVolunteerID == userid){
+      return ContentService.createTextOutput(':nerd_face: You are still signed up for <' + row.slackURL + '|request ' + uniqueid + '> (' + row.requesterName + ', ' + row.requesterAddr + '). '+
+                                             'The Requester\'s contact details are ' + row.requesterContact + ':tada:.\nWhen you are done, type `/done ' + uniqueid + '`.\n'+
                                              'To cancel your help offer, type `/cancel '+ uniqueid + '`.\nTo see this message again, type `/volunteer ' + uniqueid + '`.\n'+
                                              'If you need any help, contact ' + mention_requestCoord + '.');
     } else {
-      return ContentService.createTextOutput('Sorry, <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + ') is not available. Its status is ' + status + '. '+
-                                             'Volunteer is <@' + volunteerID + '>. Type `/list` to list all the available requests in this channel. '+
+      return ContentService.createTextOutput('Sorry, <' + row.slackURL + '|request ' + uniqueid + '> (' + row.requesterName + ', ' + stripStartingNumbers(row.requesterAddr) + ') is not available. Its status is ' + row.requestStatus + '. '+
+                                             'Volunteer is <@' + row.slackVolunteerID + '>. Type `/list` to list all the available requests in this channel. '+
                                              'If you think there is a mistake, contact ' + mention_requestCoord + '.');
     }
   }
@@ -106,7 +69,7 @@ function volunteer (uniqueid, channelid, userid, username){
       contentType: 'application/json; charset=utf-8',
       headers: {Authorization: 'Bearer ' + access_token},
       payload: JSON.stringify({text: out_message,
-                               thread_ts: slack_ts,
+                               thread_ts: row.slackTS,
                                channel: channelid})
     };
   // Send post request to Slack chat.postMessage API   
@@ -117,30 +80,33 @@ function volunteer (uniqueid, channelid, userid, username){
   if (return_params.ok !== true){ // message was not successfully posted to channel
     
     // update log sheet
-    var sheet_log = spreadsheet.getSheetByName(log_sheetname);
-    var row_log = sheet_log.getLastRow();
-    sheet_log.getRange(row_log+1,1,1,5).setValues([[new Date(), uniqueid,'admin','confirmVolunteer',return_message]]);
+    log_sheet.appendRow([new Date(), uniqueid,'admin','confirmVolunteer',return_message]);
     
     // return error to user
     return ContentService.createTextOutput('error: Due to a technical incident, I was unable to process your command. Can you please ask ' + mention_requestCoord + ' to sign you up manually?');
   }
   
   // write userid, username and status to sheet
-  sheet.getRange(row, colindex_volunteerID+1).setValue(userid);
-  sheet.getRange(row, colindex_volunteerName+1).setValue(username);
-  sheet.getRange(row, colindex_status+1).setValue('Assigned');
+  row.slackVolunteerID = userid;
+  row.slackVolunteerName = username;
+  row.requestStatus = "Assigned";
+  tracking_sheet.writeRow(row);
   
   // update log sheet
-  var sheet_log = spreadsheet.getSheetByName(log_sheetname);
-  var row_log = sheet_log.getLastRow();
-  sheet_log.getRange(row_log+1,1,2,5).setValues([[new Date(), uniqueid,userid,'slackCommand','volunteer'],
-                                                 [new Date(), uniqueid,'admin','confirmVolunteer',return_message]]);
-    
+  log_sheet.appendRow([new Date(), uniqueid,userid,'slackCommand','volunteer']);
+  log_sheet.appendRow([new Date(), uniqueid, 'admin','confirmVolunteer', return_message]);   
 
-  return ContentService.createTextOutput(':nerd_face: Thank you for volunteering! You signed up for <' + slackurl + '|request ' + uniqueid + '> (' + requesterName + ', ' + address + '). '+
-                                         'The Requester\'s contact details are ' + contactDetails + ':tada:.\nWhen you are done, type `/done ' + uniqueid + '`.\n'+
-                                         'To cancel your help offer, type `/cancel '+ uniqueid + '`.\nTo see this message again, type `/volunteer ' + uniqueid + '`.\n'+
-                                         'If you need any help, contact ' + mention_requestCoord + '.');
+  return contentServerJsonReply(
+    // Function signiture: slackurl, uniqueid, requesterName, mention_requestCoord, address, contactDetails, householdSituation
+    volunteerSuccessReply(
+      row.slackURL, 
+      uniqueid, 
+      row.requesterName, 
+      mention_requestCoord, 
+      row.requesterAddr, 
+      row.requesterContact,
+      row.householdSit,
+    ))
 }
 
 
@@ -217,7 +183,7 @@ function volunteer2 (uniqueid, channelid, userid, username){
 //     return ContentService.createTextOutput('error: I couldn\'t find the request number `' + uniqueid + '`. Did you type the right number?'+
 //  ' Type `/list` to list all the available requests in this channel. If the issue persists, contact ' + mention_requestCoord + '.');
 //  }
-  var row = getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
+  var row = getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
 //  var row = +uniqueid - 1000 +2;
   var rowvalues = sheet.getRange(row, 1, 1, tracking_sheet_ncol).getValues()[0];
   if (rowvalues[colindex_uniqueid] != uniqueid){

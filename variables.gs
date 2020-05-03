@@ -38,7 +38,15 @@ function globalVariables(){
                      "completionLastDetails",
                      "nextDateNeeded"], // tracking sheet column order. ie: first element is col 'A', second is col 'B', ... 
 //    The strings need not match the actual sheet's header strings. They must match the strings called in the script functions.
-    
+    // A list of columns that can be updated via this script.
+    // This is to prevent accidental overwritting of sheet columns.
+    MACHINE_WRITABLE_COLS: [
+                      "commentsForSlack",
+                      "requestStatus",
+                      "slackTS",
+                      "slackVolunteerName",
+                      "channelid",
+                      "slackVolunteerID"],
     WEBHOOK_CHATPOSTMESSAGE: 'https://slack.com/api/chat.postMessage'
   };
   return globvar;

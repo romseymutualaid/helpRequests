@@ -202,7 +202,7 @@ function done(uniqueid, channelid, userid, requestNextStatus, completionLastDeta
   var sheet = spreadsheet.getSheetByName(tracking_sheetname);
   
   // find requested row in sheet  
-  var row = getRowByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
+  var row = getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX);
   var rowvalues = sheet.getRange(row, 1, 1, tracking_sheet_ncol).getValues()[0];
   
   // store fields as separate variables
