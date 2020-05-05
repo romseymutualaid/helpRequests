@@ -1,17 +1,32 @@
 function doPost(e) { // catches slack slash commands
   if (typeof e !== 'undefined') {
     
-    // extract message body
-    var par = e.parameter; 
+    // parse the event object
+    var slackEvent = new SlackEventWrapper();
+    slackEvent.parseEvent(e); // update slackEvent with parsed values contained in event e
     
-    // decide the nature of the POST request
-    var payload = par.payload;
-    if (payload){ // if payload exists, this is a POST request from a slack interactive component
-      return handleSlackInteractiveMessages(JSON.parse(payload));
-    } else{ // else, this is a POST request from a slack slash command
-      return handleSlackCommands(par);
+    // quick check event authenticity
+    var authenticityCheck = slackEvent.checkAuthenticity();
+    if (!authenticityCheck.code){
+      return contentServerJsonReply(authenticityCheck.msg);
     }
-        
+    
+    // quick check event syntax
+    //**** todo ****//
+    
+    // if desired, queue event handling and return "pending" response
+    //**** todo ****//
+    
+    // if not, handle event immediately
+    if(slackEvent.type==='view_submission' || slackEvent.type==='command'){
+      return slackEvent.handleEvent();
+    } else{
+      return contentServerJsonReply('error: I can\'t handle the event type "'+slackEvent.type+'".');
+    }
+      
+    
+    return contentServerJsonReply('Thank you for your message. I\'m a poor bot so please be patient... it should take me up to a few minutes to get back to you...');
+    
   }
 }
 
