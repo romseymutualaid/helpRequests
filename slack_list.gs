@@ -1,6 +1,7 @@
-function list (channelid){
+function list (args){
   ///// COMMAND: /LIST
   
+  var channelid = args.channelid
   
   /// declare variables
   var globvar = globalVariables();
@@ -39,9 +40,10 @@ function list (channelid){
   return(ContentService.createTextOutput(message_out));
 }
 
-function listactive (channelid){
+function listactive (args){
   ///// COMMAND: /LISTALL
     
+  var channelid = args.channelid
   
   /// declare variables
   var globvar = globalVariables();
@@ -83,9 +85,10 @@ function listactive (channelid){
   return(ContentService.createTextOutput(message_out));
  }
 
-function listall (channelid){ // may want to sort the output message by status in future version
+function listall (args){ // may want to sort the output message by status in future version
   ///// COMMAND: /LISTALL
   
+  var channelid = args.channelid
   
   /// declare variables
   var globvar = globalVariables();
@@ -129,8 +132,11 @@ function listall (channelid){ // may want to sort the output message by status i
 }
 
 
-function listmine (channelid, userid){
+function listmine (args){
   ///// COMMAND: /LISTMINE
+  
+  var userid = args.userid;
+  var channelid = args.channelid;
   
   /// declare variables
   var globvar = globalVariables();
@@ -168,8 +174,11 @@ function listmine (channelid, userid){
 }
 
 
-function listallmine (channelid, userid){
+function listallmine (args){
   ///// COMMAND: /LISTMINE
+  
+  var userid = args.userid;
+  var channelid = args.channelid;
   
   /// declare variables
   var globvar = globalVariables();

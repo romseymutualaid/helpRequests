@@ -1,25 +1,24 @@
-function doPost(e) { // catches slack slash commands
+function doPost(e) { // catches slack POST requests
   if (typeof e !== 'undefined') {
     
-    // parse the event object
+    // parse the event object and proceed if successful
     var slackEvent = new SlackEventWrapper();
-    slackEvent.parseEvent(e); // update slackEvent with parsed values contained in event e
-    
-    // quick check event authenticity
-    var authenticityCheck = slackEvent.checkAuthenticity();
-    if (!authenticityCheck.code){
-      return contentServerJsonReply(authenticityCheck.msg);
+    var parsingCheck = slackEvent.parseEvent(e);
+    if (!parsingCheck.code){
+      return contentServerJsonReply(parsingCheck.msg);
     }
-    
-    // quick check event syntax
-    //**** todo ****//
     
     // if desired, queue event handling and return "pending" response
     //**** todo ****//
     
     // if not, handle event immediately
     if(slackEvent.type==='view_submission' || slackEvent.type==='command'){
-      return slackEvent.handleEvent();
+      var user_message = slackEvent.handleEvent();
+      if (slackEvent.subtype === 'done_clarify'){
+        return ContentService.createTextOutput(); // HTTP 200 OK reply is required to close modal
+      } else {
+        return user_message;
+      }
     } else{
       return contentServerJsonReply('error: I can\'t handle the event type "'+slackEvent.type+'".');
     }

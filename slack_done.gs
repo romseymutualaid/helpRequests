@@ -1,4 +1,4 @@
-function done_send_modal(uniqueid, channelid, userid, response_url, slack_trigger_id){
+function done_send_modal(args){
 /// done_send_modal: Open up a slack modal so that user can provide more information about his /done instance
   
   
@@ -7,12 +7,12 @@ function done_send_modal(uniqueid, channelid, userid, response_url, slack_trigge
   var mention_requestCoord = globvar['MENTION_REQUESTCOORD'];
   var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API authentication token
   
+  var uniqueid = args.uniqueid;
+  var channelid = args.channelid;
+  var userid = args.userid;
+  var response_url = args.response_url;
+  var slack_trigger_id = args.trigger_id;
   
-  // check syntax of command arguments
-  var syntaxCheck_output = checkUniqueID(uniqueid)
-  if (!syntaxCheck_output.code){ // if syntax check returned an error, halt
-    return (syntaxCheck_output.msg);
-  }
   
   // Send post request to Slack views.open API to open a modal for user  
   var cmd_metadata = JSON.stringify({
@@ -87,14 +87,14 @@ function done_send_modal(uniqueid, channelid, userid, response_url, slack_trigge
   var return_params = JSON.parse(return_message);
   var return_ok = return_params.ok;
   if (return_ok !== true){
-    return ('I failed to open the /done submission form. Can you please notify a developer? This is the error message:\n'+return_message);
+    return contentServerJsonReply('I failed to open the /done submission form. Can you please notify a developer? This is the error message:\n'+return_message);
   }
 
-  return ('A request completion form will open in less than 3 seconds... if not, please type `/done '+uniqueid+'` again.');
+  return contentServerJsonReply('A request completion form will open in less than 3 seconds... if not, please type `/done '+uniqueid+'` again.');
 }
 
 
-function done_process_modal(userid,view){
+function done_process_modal(args){
   /// done_process_modal: Read done modal submission. Process done command.
   
   /// declare variables
@@ -102,24 +102,11 @@ function done_process_modal(userid,view){
   var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
   var log_sheetname = globvar['LOG_SHEETNAME'];
   
-  // get uniqueid/channelid/response_url from modal private_metadata 
-  var cached_values = JSON.parse(view.private_metadata);
-  var uniqueid = cached_values.uniqueid;
-  var channelid = cached_values.channelid;
-  var response_url = cached_values.response_url;
-  
-  // get response values in modal
-  var modalResponseVals = view.state.values;
-  var requestNextStatus = modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value;
-  var completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
-  if (!completionLastDetails){
-    completionLastDetails=''; // replace undefined with ''
-  }
-  
   // process done command
-  var out_message = done(uniqueid, channelid, userid, requestNextStatus, completionLastDetails);
+  var out_message = done(args);
   
   // send reply to slack user with response_url functionality
+  var response_url = args.response_url;
   var options = {
     method: "post",
     contentType: 'application/json; charset=utf-8',
@@ -133,14 +120,24 @@ function done_process_modal(userid,view){
   
   // update log sheet
   var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow([new Date(), uniqueid, 'admin','confirmDoneUser', return_message]);
+  log_sheet.appendRow([new Date(), args.uniqueid, 'admin','confirmDoneUser', return_message]);
 }
 
 
 
-function done(uniqueid, channelid, userid, requestNextStatus, completionLastDetails){
+function done(args){
   ///// COMMAND: /DONE
-    
+  
+  var uniqueid = args.uniqueid;
+  var channelid = args.channelid;
+  var userid = args.userid;
+  
+  var modalResponseVals = args.more;
+  var requestNextStatus = modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value;
+  var completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
+  if (!completionLastDetails){
+    completionLastDetails=''; // replace undefined with ''
+  }
   
   /// declare variables
   var globvar = globalVariables();
@@ -152,12 +149,6 @@ function done(uniqueid, channelid, userid, requestNextStatus, completionLastDeta
     
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
   var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
-  
-  // check syntax of command arguments
-  var syntaxCheck_output = checkUniqueID(uniqueid)
-  if (!syntaxCheck_output.code){ // if syntax check returned an error, halt
-    return (syntaxCheck_output.msg);
-  }
   
   // find requested row in sheet
   var row = tracking_sheet.getRowByUniqueID(uniqueid);
@@ -208,7 +199,7 @@ function done(uniqueid, channelid, userid, requestNextStatus, completionLastDeta
   tracking_sheet.writeRow(row);
   
   if (requestNextStatus === 'keepOpenNew'){
-    cancel(uniqueid, channelid, userid);
+    cancel(args);
   }
   
   // return private message to user

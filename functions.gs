@@ -40,49 +40,13 @@ function stripStartingNumbers(s){
 // slack command functions
 //****************************************
 
-function checkUniqueID (uniqueid){
-  // checkUniqueID: check that uniqueid does indeed match a 4-digit string
-  
-  // load global variables
-  var globvar = globalVariables();
-  var mod_userid = globvar['MOD_USERID'];
-  var mention_mod = '<@'+mod_userid+'>';
-  
-  // initialise output object
-  var fail_msg = 'error: The request number `'+uniqueid+'` does not appear to be a 4-digit number as expected. '+
-                                           'Please specify a correct request number. Example: `/volunteer 1000`.';
-  var output = {code:false, msg:fail_msg};
-  
-  // personalise error message if uniqueid was not specified at all
-  if (uniqueid == ''){
-    output.msg = ('error: You must provide the request number present in the help request message (example: `/volunteer 9999`). '+
-                                           'You appear to have not typed any number. If the issue persists, contact ' + mention_mod + '.');
-    return output;
-  }
-  
-  // regexp match
-  var re = new RegExp("^[0-9]{4}$"); // regexp match for user_id in mention string
-  var uniqueid_re = re.exec(uniqueid); // RegExp.exec returns array. First element is matched string, following elements are matched groupings.
-  if (uniqueid_re){ // regex function did not fail
-    var uniqueid_re_match = uniqueid_re[0];
-    if (uniqueid_re_match != ''){ // and regex function returned a match
-      output.code=true;
-      output.msg='';
-    } 
-  }
-  
-  return output;
-}
-
 function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
   // checkCommandValidity: Checks the following items and returns an output.code (true or false) and output.message (string) accordingly...
   // 1. has script found the correct row in spreadsheet (i.e. uniqueid consistency)?
   // 2. is command sent from the correct channel?
   // 3. is command sent by the appropriate user?
   // 4. is command allowed given the request's current status?
-  
-  
-  
+    
 //  // test inputs
 //  cmd='done';
 //  rowvalues=['1019',

@@ -1,6 +1,10 @@
-function cancel(uniqueid, channelid, userid){
+function cancel(args){
   ///// COMMAND: /CANCEL
   
+  
+  var uniqueid = args.uniqueid;
+  var channelid = args.channelid;
+  var userid = args.userid;
   
   /// declare variables
   var globvar = globalVariables();
@@ -12,12 +16,6 @@ function cancel(uniqueid, channelid, userid){
     
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
   var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
-  
-  // check syntax of command arguments
-  var syntaxCheck_output = checkUniqueID(uniqueid)
-  if (!syntaxCheck_output.code){ // if syntax check returned an error, halt
-    return contentServerJsonReply(syntaxCheck_output.msg);
-  }
   
   // find requested row in sheet
   var row = tracking_sheet.getRowByUniqueID(uniqueid);

@@ -1,7 +1,7 @@
 class SlackEventWrapper {
   // Wrapper for slack doPost events
   
-  constructor(){
+  constructor(e){
     // declaire the entire structure (for readability)
     
     this.token=null; // slack app verification token string
@@ -10,19 +10,17 @@ class SlackEventWrapper {
     this.type=null; // describes the high level type of event (slash command, interactive message, ...)
     this.subtype=null; // describes the lower level type of event (slash command name, interactive message subtype, ...) 
     
-    this.channelid=null; // channel_id that event originates from
-    this.userid=null; // user_id from whom the event originates 
-    this.username=null; // user_name associated to this.userid
-    this.response_url=null; // POST url to provide delayed response to user
-    this.trigger_id=null; // needed to generate interactive messages in response to event
-    
     this.argsString=null; // temporary var for backwards compatibility
     this.args={
-      uniqueid:null, // help request number
-      mentionName:null, // markdown-formatted mention name
-      more:null // space for extra arguments
-    };
-    
+      channelid:null, // channel_id that event originates from
+      userid:null, // user_id from whom the event originates 
+      username:null, // (optional) user_name associated to this.userid
+      response_url:null, // POST url to provide delayed response to user
+      trigger_id:null, // needed to generate interactive messages in response to event
+      uniqueid:null, // (optional) help request number
+      mention:{str:null, userid:null, username:null}, // (optional) markdown-formatted mention name
+      more:null // (optional) space for extra arguments
+    };    
   }
   
   parseEvent(e){
@@ -30,13 +28,27 @@ class SlackEventWrapper {
       // extract message body
       var par = e.parameter; 
     
-      // decide the nature of the doPost event
+      // parse according to the nature of the doPost event
       var payload = par.payload;
       if (payload){ // if payload exists, this is a doPost event from a slack interactive component
         this.parseEventInteractiveMessage(JSON.parse(payload));
       } else{ // else, this is a doPost event from a slack slash command
         this.parseEventSlashCommand(par);
       }
+      
+      // quick check event authenticity
+      var authenticityCheck = this.checkAuthenticity();
+      if (!authenticityCheck.code){
+        return authenticityCheck;
+      }
+      
+      // quick check event syntax
+      var syntaxCheck = this.checkArgSyntax();
+      if (!syntaxCheck.code){
+        return syntaxCheck;
+      }
+      
+      return {code:true, msg:''}; // if all good, return success object
     }    
   }
   
@@ -47,12 +59,14 @@ class SlackEventWrapper {
     this.type = par.type; 
     this.subtype = par.view.callback_id;
     
-    this.channelid = view.private_metadata.channelid;
-    this.userid = par.user.id;
-    this.response_url = view.private_metadata.response_url;
+    var metadata_parsed = JSON.parse(par.view.private_metadata);
     
-    this.args.uniqueid = view.private_metadata.uniqueid;
-    this.args.more = view.state.values;    
+    this.args.channelid = metadata_parsed.channelid;
+    this.args.userid = par.user.id;
+    this.args.response_url = metadata_parsed.response_url;
+    
+    this.args.uniqueid = metadata_parsed.uniqueid;
+    this.args.more = par.view.state.values;
   }
   
   
@@ -63,22 +77,22 @@ class SlackEventWrapper {
     this.type = 'command';
     this.subtype = par.command;
     
-    this.channelid = par.channel_id;
-    this.userid = par.user_id;
-    this.username = par.user_name;
-    this.response_url = par.response_url;
-    this.trigger_id = par.trigger_id
+    this.args.channelid = par.channel_id;
+    this.args.userid = par.user_id;
+    this.args.username = par.user_name;
+    this.args.response_url = par.response_url;
+    this.args.trigger_id = par.trigger_id;
     
     this.argsString=par.text;
-    this.parseEventSlashCommandArgs(par.text); // populate this.args
+    this.parseEventSlashCommandTxt(par.text); // populates this.args
   }
   
-  parseEventSlashCommandArgs(txt){
+  parseEventSlashCommandTxt(txt){
     // parse txt string and store parsed values in this.args
     if(txt) {
       var args = txt.split(' ');
       this.args.uniqueid = args[0]; // if uniqueid is specified, it is always the first argument
-      this.args.mentionName = args[1]; // if mentionName is specified, it is always the second argument
+      this.args.mention.str = args[1]; // if user mention is specified, it is always the second argument
     }
   }
   
@@ -95,90 +109,150 @@ class SlackEventWrapper {
     // check token
     if(!token_true){ // check that token_true has been set in script properties
       output.msg = 'error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.';
-      return(output);
+      return output;
     }  
     if (this.token !== token_true) {
       output.msg = 'error: Invalid token ' + this.token + ' . The command will not run. Please contact the web app developer.';
-      return(output);
+      return output;
     }
     
     // check request originates from our slack workspace
     if (this.teamid != teamid_true){
       output.msg = 'error: You are sending your command from an unauthorised slack workspace.';
-      return(output);
+      return output;
     }
     
     output.code=true;
-    return (output);
+    return output;
+  }
+  
+  
+  slackCmd2FctName(){
+    // match this.subtype with the function it is meant to call
+    var slackCmd2FctName = globalVariables()['SLACKCMD_TO_FUNCTIONNAME']; // this is where all the key-value pairs (event.subtype - functionName) are stored
+    if (!slackCmd2FctName.hasOwnProperty(this.subtype)){ // if no key is found for this.subtype, return error
+        return false;
+    }
+    return slackCmd2FctName[this.subtype];
   }
   
   
   checkArgSyntax(){
-    //**** todo ****//
+    // check syntax of this.args depending on function to be called
+    
+    // match doPost event.subtype with the function it is meant to call
+    var fctName = this.slackCmd2FctName();
+    if (!fctName){
+      return ('error: Sorry, the `' + this.subtype + '` command is not currently supported.');;
+    }
+    
+    // initialise output variable
+    var output = {code:false, msg:''};
+    
+    // check uniqueid syntax
+    var uniqueid_fcts = ['assign', 'volunteer', 'cancel', 'done_send_modal','done_process_modal'];
+    if (uniqueid_fcts.indexOf(fctName) > -1){ // check if fctName is expected to pass the uniqueid argument
+      var checkUniqueId_output = this.checkArgSyntaxRegexp("uniqueid");
+      if (!checkUniqueId_output.code){
+        output.msg += '\n' + checkUniqueId_output.msg;
+      }
+    }
+    
+    // check mention syntax
+    var mention_fcts = ['assign'];
+    if (mention_fcts.indexOf(fctName) > -1){ // check if fctName is expected to pass the mentionName argument
+      var checkUniqueId_output = this.checkArgSyntaxRegexp("mention");
+      if (!checkMention_output.code){
+        output.msg += '\n' + checkMention_output.msg;
+      }
+    }
+    
+    // format output variable
+    if (output.msg !== ''){ // if any error was picked up, wrap
+      output.msg = 'I wasn\'t able to process your command for the following reasons:' + output.msg;
+    } else{
+      output.code = true;
+    }
+    return output;
   }
+  
+  checkArgSyntaxRegexp(argname){
+    // checkArgSyntaxRegexp: check that a particular arg matches a regexp
+    
+    // load global variables
+    var globvar = globalVariables();
+    var mod_userid = globvar['MOD_USERID'];
+    var mention_mod = '<@'+mod_userid+'>';
+    
+    var syntax_object={
+      "uniqueid":{
+        arg:this.args.uniqueid,
+        regexp:"^[0-9]{4}$",
+        fail_msg_empty:'error: You must mention a user that the command applies to. Example: `/assign 9999 ' + mention_mod  + '`.'+
+                    'You appear to have not mentioned anyone. If the issue persists, please contact ' + mention_mod + '.',
+        fail_msg_nomatch:'error: I did not recognise the user `'+this.args.uniqueid+'` you specified. Please specify the user by their mention name. Example: `/assign 9999 ' + mention_mod  + '`.'
+      },
+      "mention":{
+        arg:this.args.mention.str,
+        regexp:"<@(U[A-Z0-9]+)\\|?(.*)>",
+        fail_msg_empty:'error: I did not recognise the user `'+this.args.mention.str+'` you specified. Please specify the user by their mention name. Example: `/assign 9999 ' + mention_mod  + '`.',
+        fail_msg_nomatch:'error: You must mention a user that the command applies to. Example: `/assign 9999 ' + mention_mod  + '`.'+
+                    'You appear to have not mentioned anyone. If the issue persists, please contact ' + mention_mod + '.'
+      }
+    };
+    
+    // initialise output object
+    var output = {code:false, msg:syntax_object[argname].fail_msg_nomatch};
+    
+    // personalise error message if arg was not specified at all
+    if (!syntax_object[argname].arg || syntax_object[argname].arg == ''){
+      output.msg = syntax_object[argname].fail_msg_empty;
+      return output;
+    }
+    
+    // regexp match arg
+    var re = new RegExp(syntax_object[argname].regexp); 
+    var re_match = re.exec(syntax_object[argname].arg); // RegExp.exec returns array if match (null if not). First element is matched string, following elements are matched groupings.
+    if (re_match){
+      output.code = true;
+      output.msg='';
+      if (argname === 'mention'){ // parse userid and username from user mention string
+        this.args.mention.userid = re_match[1];
+        this.args.mention.username = re_match[2];
+      }
+    }
+    
+    return output;
+  }
+  
+  
   
   handleEvent (){
-    //  handle slack doPOST events
-  
-    // extract relevant data from message body
-    var workspace = this.teamid;
-    var command = this.subtype;
-    var channelid = this.channelid;
-    var userid = this.userid;
-    var username = this.username;
-    var args = this.argsString; // todo: replace this with slack.args
-    var response_url = this.response_url;
-    var trigger_id = this.trigger_id;
+    // handle slack doPost events
     
-    // process command field. 
-    // note: Slack has a 3 second timeout on client end. This has not been an issue yet, but with database volume increase, function execution times may increase and lead to timeouts. 
-    // note-continued: A fix would be to return an acknowledgement message to client directly without actually executing the function. 
-    // note-continued: The function should be somehow queued for execution and par.response_url is passed as an extra argument which allows the slack acknowledgment message to be updated. 
-    // note-continued : I have tried delayed function executes with time-delay triggers but that was not appropriate as time-delay triggers - upon creation - have a 1 min queue time before triggering. Too long.
-    // note-continued : A workaround could be to queue commands with an automatic submission to a dedicated form (see https://stackoverflow.com/questions/54809366/how-to-send-delayed-response-slack-api-with-google-apps-script-webapp?rq=1). 
-    // note-continued : The form responses must be linked to the spreadsheet. Then, the onFormSubmit installed trigger may catch the submissions and execute the relevant functions. This is faster than time-delayed triggers, but can still take several seconds. 
-    // note-continued : For now I have avoided any delayed execution and optimised the function execution times to ensure that a return message arrives within the 3 second timeout window.
-    if(command==='done_clarify'){
-      done_process_modal(userid,this.args);
-      return ContentService.createTextOutput(); // an empty HTTP 200 OK message is required for modal to close on slack client end.
-    } else if (command == '/_volunteer'){
-      return volunteer(args, channelid, userid, username);      
-    } else if (command == '/_volunteer2'){
-      return volunteer2(args, channelid, userid, username);      
-    } else if (command == '/_assign'){
-      return assign(args,channelid, userid);      
-    } else if (command == '/_cancel') {
-      return cancel(args, channelid, userid);
-    } else if (command == '/_done') {
-      return contentServerJsonReply(done_send_modal(args, channelid, userid, response_url, trigger_id));
-    } else if (command == '/_list') {
-      return list(channelid);
-    }  else if (command == '/_listactive') {
-      return listactive(channelid);
-    } else if (command == '/_listall') {
-      return listall(channelid);
-    } else if (command == '/_listmine') {
-      return listmine(channelid,userid);
-    } else if (command == '/_listallmine') {
-      return listallmine(channelid,userid);
-    } else if (command == '/jb_v'){
-      return volunteer(args, channelid, userid, username);      
-    } else if (command == '/jb_c') {
-      return cancel(args, channelid, userid);
-    } else if (command == '/jb_d') {
-      return contentServerJsonReply(done_send_modal(args, channelid, userid, response_url, trigger_id)); // clarify request by opening a modal in slack (with trigger_id) for user to fill
-      // IB dev switch            
-    } else if (command == '/ib_v'){            
-      return volunteer(args, channelid, userid, username);                  
-    } else if (command == '/ib_c') {            
-      return cancel(args, channelid, userid);            
-    } else if (command == '/ib_d') {            
-      return contentServerJsonReply(done_send_modal(args, channelid, userid, response_url, trigger_id));            
-      // Default
-    } else {
-      return ContentService.createTextOutput('error: Sorry, the `' + command + '` command is not currently supported.');
+    // match doPost event.subtype with the function it is meant to call
+    var fctName = this.slackCmd2FctName();
+    if (!fctName){
+      return contentServerJsonReply('error: Sorry, the `' + this.subtype + '` command is not currently supported.');
     }
+  
+    // check that function exists in global scope
+    if (!GlobalFuncHandle[fctName]){
+      return contentServerJsonReply('error: Sorry, the `' + this.subtype + '` command is not properly connected on the server. Please contact the web app developer.');
+    }
+    
+    // check command validity
+    this.checkCmdValidity();
+    
+    
+    // call function by name
+//    return contentServerJsonReply(GlobalFuncHandle[fctName](this.args));
+    return GlobalFuncHandle[fctName](this.args);    
   }
   
+  checkCmdValidity(){
+    //**** todo ****//
+    
+  }  
   
 }
