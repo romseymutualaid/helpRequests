@@ -1,5 +1,7 @@
 //// all global variable declarations are made here
 
+var GlobalFuncHandle = this; // this is used to call functions by name (i.e. GlobalFuncHandle[funcName]();)
+
 function globalVariables(){
   var globvar = {
     LOG_SHEETNAME: 'log',    
@@ -53,6 +55,28 @@ function globalVariables(){
       "completionCount",
       "completionLastTimestamp",
       "completionLastDetails"],
+    
+    // A key-value object to associate slack command strings to the internal function name they should call
+    SLACKCMD_TO_FUNCTIONNAME: {
+      'done_modal':'done_process_modal',
+      '/_volunteer':'volunteer',
+      '/_volunteer2':'volunteer_debug',
+      '/_assign':'assign',
+      '/_cancel':'cancel',
+      '/_done':'done_send_modal',
+      '/_list':'list',
+      '/_listactive':'listactive',
+      '/_listall':'listall',
+      '/_listmine':'listmine',
+      '/_listallmine':'listallmine',
+      '/jb_v':'volunteer',
+      '/jb_c':'cancel',
+      '/jb_d':'done_send_modal',
+      '/jb_a':'assign',
+      '/ib_v':'volunteer',
+      '/ib_c':'cancel',
+      '/ib_d':'done_send_modal'
+    },
     
     WEBHOOK_CHATPOSTMESSAGE: 'https://slack.com/api/chat.postMessage'
   };

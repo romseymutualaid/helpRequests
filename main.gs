@@ -1,17 +1,26 @@
-function doPost(e) { // catches slack slash commands
+function doPost(e) { // catches slack POST requests
   if (typeof e !== 'undefined') {
     
-    // extract message body
-    var par = e.parameter; 
-    
-    // decide the nature of the POST request
-    var payload = par.payload;
-    if (payload){ // if payload exists, this is a POST request from a slack interactive component
-      return handleSlackInteractiveMessages(JSON.parse(payload));
-    } else{ // else, this is a POST request from a slack slash command
-      return handleSlackCommands(par);
+    // parse the event object and proceed if successful
+    var slackEvent = new SlackEventWrapper();
+    var parsingCheck = slackEvent.parseEvent(e);
+    if (!parsingCheck.code){
+      return contentServerJsonReply(parsingCheck.msg);
     }
-        
+    
+    // if desired, queue event handling and return "pending" response
+    //**** todo ****//
+    
+    
+    // if not, handle event immediately
+    var user_message = slackEvent.handleEvent();
+    
+    if (slackEvent.subtype === 'done_modal'){
+      return ContentService.createTextOutput(); // HTTP 200 OK reply is required to close modal
+    } else {
+      return user_message;
+    }
+    
   }
 }
 

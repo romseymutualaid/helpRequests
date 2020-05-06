@@ -1,5 +1,12 @@
-function volunteer (uniqueid, channelid, userid, username){
+function volunteer (args){
   ///// COMMAND: /VOLUNTEER
+  
+  
+  var uniqueid = args.uniqueid;
+  var channelid = args.channelid;
+  var userid = args.userid;
+  var username = args.username;
+  
   
   /// declare variables
   var globvar = globalVariables();
@@ -11,12 +18,6 @@ function volunteer (uniqueid, channelid, userid, username){
     
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
   var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
-  
-  // check syntax of command arguments
-  var syntaxCheck_output = checkUniqueID(uniqueid)
-  if (!syntaxCheck_output.code){ // if syntax check returned an error, halt
-    return contentServerJsonReply(syntaxCheck_output.msg);
-  }
   
   // find requested row in sheet
   var row = tracking_sheet.getRowByUniqueID(uniqueid);
@@ -66,10 +67,14 @@ function volunteer (uniqueid, channelid, userid, username){
 }
 
 
-function volunteer2 (uniqueid, channelid, userid, username){
+function volunteer_debug (args){
   var t0= Date.now();
   ///// COMMAND: /VOLUNTEER
   
+  var uniqueid = args.uniqueid;
+  var channelid = args.channelid;
+  var userid = args.userid;
+  var username = args.username;
   
   /// declare variables
   var globvar = globalVariables();
@@ -115,18 +120,6 @@ function volunteer2 (uniqueid, channelid, userid, username){
   var colindex_address = tracking_sheet_col_index['requesterAddr'];
   
   var t1= Date.now();  
-  
-  // check that request uniqueid has been specified
-  if (uniqueid == ''){
-    return ContentService.createTextOutput('error: You must provide the request number present in the help request message (example: `/volunteer 9999`). '+
-                                           'You appear to have not typed any number. If the issue persists, contact ' + mention_requestCoord + '.');
-  }
-  
-  // check that uniqueid does indeed match a 4-digit string
-  if (!checkUniqueID(uniqueid)){
-    return ContentService.createTextOutput('error: The request number `'+uniqueid+'` does not appear to be a 4-digit number as expected. '+
-                                           'Please specify a correct request number. Example: `/volunteer 1000`.');
-  }  
   
   // find requested row in sheet
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
