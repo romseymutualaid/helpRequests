@@ -254,8 +254,7 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
   var requesterName = sheet.getRange(row, colindex_requestername+1).getValue();
   var address = stripStartingNumbers(sheet.getRange(row, colindex_address+1).getValue());
   var requestType = sheet.getRange(row, colindex_requestType+1).getValue();
-  var requestDateUnformatted = new Date (sheet.getRange(row, colindex_requestDate+1).getValue());
-  var requestDate = requestDateUnformatted.getDate() + '/' + (requestDateUnformatted.getMonth() + 1) +'/'+ requestDateUnformatted.getFullYear( ); // DD/MM/YYYY
+  var requestDate = formatDate(sheet.getRange(row, colindex_requestDate+1).getValue());
   var requestInfo = sheet.getRange(row, colindex_requestInfo+1).getValue();
   var generalNeeds = sheet.getRange(row, colindex_generalNeeds+1).getValue();
   var channelid = sheet.getRange(row, colindex_channelid+1).getValue();
@@ -313,7 +312,8 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
     headers: {Authorization: 'Bearer ' + access_token},
     payload: JSON.stringify({blocks: out_message,
                              text: out_message_notification,
-                             channel: channelid})
+                             channel: channelid,
+                             as_user: true})
   };
   
   var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText(); // Send post request to Slack chat.postMessage API   
@@ -337,6 +337,15 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
 //****************************************
 // miscelaneous functions
 //****************************************
+
+function formatDate(date) {
+  if (date == "" || date === null || date === undefined) {
+    return "None Given";
+  } else {
+    var dt = new Date(date);
+    return dt.getDate() + '/' + (dt.getMonth() + 1) +'/'+ dt.getFullYear( ); // DD/MM/YYYY
+  }
+}
 
 function indexedObjectFromArray (arr) {
   var obj={};
