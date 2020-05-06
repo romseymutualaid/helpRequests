@@ -228,7 +228,7 @@ class SlackEventWrapper {
           }
         }
       }
-    });
+    }, this); // make sure to pass this in forEach to maintain scope
     
     // format output variable
     if (output.msg !== ''){ // if any error was picked up, wrap
