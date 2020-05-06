@@ -11,20 +11,15 @@ function doPost(e) { // catches slack POST requests
     // if desired, queue event handling and return "pending" response
     //**** todo ****//
     
-    // if not, handle event immediately
-    if(slackEvent.type==='view_submission' || slackEvent.type==='command'){
-      var user_message = slackEvent.handleEvent();
-      if (slackEvent.subtype === 'done_clarify'){
-        return ContentService.createTextOutput(); // HTTP 200 OK reply is required to close modal
-      } else {
-        return user_message;
-      }
-    } else{
-      return contentServerJsonReply('error: I can\'t handle the event type "'+slackEvent.type+'".');
-    }
-      
     
-    return contentServerJsonReply('Thank you for your message. I\'m a poor bot so please be patient... it should take me up to a few minutes to get back to you...');
+    // if not, handle event immediately
+    var user_message = slackEvent.handleEvent();
+    
+    if (slackEvent.subtype === 'done_modal'){
+      return ContentService.createTextOutput(); // HTTP 200 OK reply is required to close modal
+    } else {
+      return user_message;
+    }
     
   }
 }

@@ -43,7 +43,7 @@ class SlackEventWrapper {
       }
       
       // quick check event syntax
-      var syntaxCheck = this.checkArgSyntax();
+      var syntaxCheck = this.checkSyntax();
       if (!syntaxCheck.code){
         return syntaxCheck;
       }
@@ -137,89 +137,104 @@ class SlackEventWrapper {
   }
   
   
-  checkArgSyntax(){
-    // check syntax of this.args depending on function to be called
-    
-    // match doPost event.subtype with the function it is meant to call
-    var fctName = this.slackCmd2FctName();
-    if (!fctName){
-      return ('error: Sorry, the `' + this.subtype + '` command is not currently supported.');;
-    }
+  checkSyntax(){
+    // check syntax of this.type, this.subtype, and this.args depending on function to be called
     
     // initialise output variable
     var output = {code:false, msg:''};
     
-    // check uniqueid syntax
-    var uniqueid_fcts = ['assign', 'volunteer', 'cancel', 'done_send_modal','done_process_modal'];
-    if (uniqueid_fcts.indexOf(fctName) > -1){ // check if fctName is expected to pass the uniqueid argument
-      var checkUniqueId_output = this.checkArgSyntaxRegexp("uniqueid");
-      if (!checkUniqueId_output.code){
-        output.msg += '\n' + checkUniqueId_output.msg;
-      }
+    // check this.type
+    var accepted_types = ['view_submission', 'command'];
+    if(accepted_types.indexOf(this.type) < 0){ // if this.type does not match any accepted_types, return error
+      output.msg = 'error: I can\'t handle the event type "'+this.type+'".';
+      return output;
     }
     
-    // check mention syntax
-    var mention_fcts = ['assign'];
-    if (mention_fcts.indexOf(fctName) > -1){ // check if fctName is expected to pass the mentionName argument
-      var checkUniqueId_output = this.checkArgSyntaxRegexp("mention");
-      if (!checkMention_output.code){
-        output.msg += '\n' + checkMention_output.msg;
-      }
+    // match doPost this.subtype with the function it is meant to call
+    var fctName = this.slackCmd2FctName();
+    if (!fctName){
+      output.msg = 'error: Sorry, the `' + this.subtype + '` command is not currently supported.';
+      return output;
     }
     
-    // format output variable
-    if (output.msg !== ''){ // if any error was picked up, wrap
-      output.msg = 'I wasn\'t able to process your command for the following reasons:' + output.msg;
-    } else{
-      output.code = true;
+    // check that function associated to this.subtype exists in global scope
+    if (!GlobalFuncHandle[fctName]){
+      output.msg = 'error: Sorry, the `' + this.subtype + '` command is not properly connected on the server. Please contact the web app developer.';
+      return output;
     }
-    return output;
+    
+    // check argument syntax for fctName
+    return this.checkArgSyntaxRegexp(fctName);
+    
   }
   
-  checkArgSyntaxRegexp(argname){
-    // checkArgSyntaxRegexp: check that a particular arg matches a regexp
+  checkArgSyntaxRegexp(fctname){
+    // checkArgSyntaxRegexp: check that a particular function fctname has all the correct args by regexp matching
     
     // load global variables
     var globvar = globalVariables();
     var mod_userid = globvar['MOD_USERID'];
     var mention_mod = '<@'+mod_userid+'>';
     
+    // define all args to check, the functions where they are expected, the regexp they should match and all possible error messages
     var syntax_object={
       "uniqueid":{
         arg:this.args.uniqueid,
         regexp:"^[0-9]{4}$",
-        fail_msg_empty:'error: You must mention a user that the command applies to. Example: `/assign 9999 ' + mention_mod  + '`.'+
-                    'You appear to have not mentioned anyone. If the issue persists, please contact ' + mention_mod + '.',
-        fail_msg_nomatch:'error: I did not recognise the user `'+this.args.uniqueid+'` you specified. Please specify the user by their mention name. Example: `/assign 9999 ' + mention_mod  + '`.'
+        fcts:['assign', 'volunteer', 'cancel', 'done_send_modal','done_process_modal'], // functions this argument is expected in
+        fail_msg_empty:'error: You must provide the request number present in the help request message (example: `/volunteer 9999`). '+
+                                           'You appear to have not typed any number. If the issue persists, contact ' + mention_mod + '.',
+        fail_msg_nomatch:'error: The request number `'+this.args.uniqueid+'` does not appear to be a 4-digit number as expected. '+
+                                           'Please specify a correct request number. Example: `/volunteer 9999`.'
       },
       "mention":{
         arg:this.args.mention.str,
         regexp:"<@(U[A-Z0-9]+)\\|?(.*)>",
-        fail_msg_empty:'error: I did not recognise the user `'+this.args.mention.str+'` you specified. Please specify the user by their mention name. Example: `/assign 9999 ' + mention_mod  + '`.',
-        fail_msg_nomatch:'error: You must mention a user that the command applies to. Example: `/assign 9999 ' + mention_mod  + '`.'+
-                    'You appear to have not mentioned anyone. If the issue persists, please contact ' + mention_mod + '.'
+        fcts:['assign'],
+        fail_msg_empty:'error: You must mention a user that the command applies to. Example: `/assign 9999 ' + mention_mod  + '`.'+
+                    'You appear to have not mentioned anyone. If the issue persists, please contact ' + mention_mod + '.',
+        fail_msg_nomatch:'error: I did not recognise the user `'+this.args.mention.str+'` you specified. Please specify the user by their mention name. Example: `/assign 9999 ' + mention_mod  + '`.'
       }
     };
     
     // initialise output object
-    var output = {code:false, msg:syntax_object[argname].fail_msg_nomatch};
+    var output = {code:false, msg:''};
     
-    // personalise error message if arg was not specified at all
-    if (!syntax_object[argname].arg || syntax_object[argname].arg == ''){
-      output.msg = syntax_object[argname].fail_msg_empty;
-      return output;
-    }
-    
-    // regexp match arg
-    var re = new RegExp(syntax_object[argname].regexp); 
-    var re_match = re.exec(syntax_object[argname].arg); // RegExp.exec returns array if match (null if not). First element is matched string, following elements are matched groupings.
-    if (re_match){
-      output.code = true;
-      output.msg='';
-      if (argname === 'mention'){ // parse userid and username from user mention string
-        this.args.mention.userid = re_match[1];
-        this.args.mention.username = re_match[2];
+    // iterate check over all potential arguments in syntax_object
+    Object.keys(syntax_object).forEach(function(key,index) { // iterate over the object properties of cmd_state_machine.command[cmd].status
+    // key: the name of the object property
+      
+      // move to next iteration (i.e. next arg to check) if fctname does not expect the argument syntax_object[key] 
+      if(syntax_object[key].fcts.indexOf(fctname) < 0){
+        return;
       }
+      
+      // if argument is expected, check syntax. If wrong syntax, append appropriate error message. If correct syntax and if relevant, do some parsing.
+      
+      if (!syntax_object[key].arg || syntax_object[key].arg == ''){ // personalise error message if arg was not specified at all
+        output.msg += '\n' + syntax_object[key].fail_msg_empty;
+      } else{
+        
+        // regexp match arg
+        var re = new RegExp(syntax_object[key].regexp); 
+        var re_match = re.exec(syntax_object[key].arg); // RegExp.exec returns array if match (null if not). First element is matched string, following elements are matched groupings.
+        
+        if (!re_match){ // if arg did not match syntax, add to error message
+          output.msg += '\n' + syntax_object[key].fail_msg_nomatch;
+        } else { // or do some optional parsing if successful
+          if (key === 'mention'){ // parse userid and username from user mention string
+            this.args.mention.userid = re_match[1];
+            this.args.mention.username = re_match[2];
+          }
+        }
+      }
+    });
+    
+    // format output variable
+    if (output.msg !== ''){ // if any error was picked up, wrap
+      output.msg = 'I wasn\'t able to process your command for the following reasons:' + output.msg;
+    } else{
+      output.code = true;
     }
     
     return output;
@@ -232,13 +247,8 @@ class SlackEventWrapper {
     
     // match doPost event.subtype with the function it is meant to call
     var fctName = this.slackCmd2FctName();
-    if (!fctName){
+    if (!fctName){ // this check is already done in parsing. added here in case corruption occurs during event queuing
       return contentServerJsonReply('error: Sorry, the `' + this.subtype + '` command is not currently supported.');
-    }
-  
-    // check that function exists in global scope
-    if (!GlobalFuncHandle[fctName]){
-      return contentServerJsonReply('error: Sorry, the `' + this.subtype + '` command is not properly connected on the server. Please contact the web app developer.');
     }
     
     // check command validity

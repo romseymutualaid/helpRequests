@@ -23,7 +23,7 @@ function done_send_modal(args){
   var out_modal = {
 	"type": "modal",
 	"title": {"type": "plain_text","text": "How did it go?"},
-    "callback_id": "done_clarify",
+    "callback_id": "done_modal",
     "private_metadata": cmd_metadata,
 	"submit": {"type": "plain_text","text": "Submit"},
 	"close": {"type": "plain_text","text": "Cancel"},

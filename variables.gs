@@ -58,7 +58,7 @@ function globalVariables(){
     
     // A key-value object to associate slack command strings to the internal function name they should call
     SLACKCMD_TO_FUNCTIONNAME: {
-      'done_clarify':'done_process_modal',
+      'done_modal':'done_process_modal',
       '/_volunteer':'volunteer',
       '/_volunteer2':'volunteer_debug',
       '/_assign':'assign',
