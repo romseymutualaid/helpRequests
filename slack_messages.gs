@@ -113,10 +113,10 @@ var postToSlack = function(message, url){
                      .getProperty('ACCESS_TOKEN');
 
   var options = {
-      method: "post",
-      contentType: 'application/json; charset=utf-8',
-      headers: {Authorization: 'Bearer ' + access_token},
-      payload: JSON.stringify(message)
+    method: "post",
+    contentType: 'application/json; charset=utf-8',
+    headers: {Authorization: 'Bearer ' + access_token},
+    payload: message
   };
 
   return UrlFetchApp
