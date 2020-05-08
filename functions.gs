@@ -21,7 +21,7 @@ function stripStartingNumbers(s){
 }
 
 
-//function getRowByColVal(sheetvalues, colindex, value){    
+//function getRowByColVal(sheetvalues, colindex, value){
 //    var row;
 //    for (var i = 0; i < sheetvalues.length ; i++)
 //    {
@@ -31,7 +31,7 @@ function stripStartingNumbers(s){
 //        break;
 //      }
 //    }
-//    return row; 
+//    return row;
 //}
 
 
@@ -46,7 +46,7 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
   // 2. is command sent from the correct channel?
   // 3. is command sent by the appropriate user?
   // 4. is command allowed given the request's current status?
-    
+
 //  // test inputs
 //  cmd='done';
 //  rowvalues=['1019',
@@ -76,15 +76,15 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
 //  uniqueid='1019';
 //  userid='UVDT8G78T';
 //  channelid='C012HGQEJMB';
-  
-  
+
+
   /// define variables
   var globvar = globalVariables();
   var mod_userid = globvar['MOD_USERID'];
   var mention_mod = '<@'+mod_userid+'>';
-  
+
   var request_formatted = '<' + row.slackURL + '|request ' + row.uniqueid + '> (' + row.requesterName + ', ' + row.requesterAddr + ')';
-  
+
   var cmd_state_machine={ // this is the finite state machine object, which contains the return messages and codes for every possible {command,status} combination
       command:{
         "done":{
@@ -104,18 +104,18 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
               returnMsg:'You have confirmed completing '+request_formatted+'. '+
                                          'I\'ve notified volunteers in the help request thread and sent your form submission to the request coordinator on-duty.'
             }
-          }  
+          }
         },
         "volunteer":{
           status:{
             "Sent|Re-open":{
               returnCode:true,
               returnMsg:volunteerSuccessReply(
-                row.slackURL, 
-                row.uniqueid, 
-                row.requesterName, 
-                mention_mod, 
-                row.requesterAddr, 
+                row.slackURL,
+                row.uniqueid,
+                row.requesterName,
+                mention_mod,
+                row.requesterAddr,
                 row.requesterContact,
                 row.householdSit,
                 true
@@ -124,11 +124,11 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
             "Assigned|Ongoing":{
               returnCode:false,
               returnMsg:volunteerSuccessReply(
-                row.slackURL, 
-                row.uniqueid, 
-                row.requesterName, 
-                mention_mod, 
-                row.requesterAddr, 
+                row.slackURL,
+                row.uniqueid,
+                row.requesterName,
+                mention_mod,
+                row.requesterAddr,
                 row.requesterContact,
                 row.householdSit,
                 false
@@ -162,31 +162,31 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
         }
       }
     };
-  
-  
+
+
  // initialise output object
   var output = {code:false, msg:''};
-  
-  
+
+
   // check that uniqueid of the row and the requested uniqueid match
   if (row.uniqueid != uniqueid){
     if (row.uniqueid == ''){ // uniqueid points to empty row --> suggests wrong number was entered
       output.msg = ('error: I couldn\'t find the request number `' + uniqueid + '`. Did you type the right number? '+
-                                             'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, please contact ' + mention_mod + '.');
+                    'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, please contact ' + mention_mod + '.');
     } else { // uniqueid points to non-empty row but mismatch --> this is a spreadsheet issue. suggests rows are not sorted by uniqueid.
       output.msg = ('error: There is a problem in the spreadsheet on the server. You asked for request-number '+uniqueid +', but I could only find request-number '+ row.uniqueid+'. '+
             'Please can you notify a developer and ask ' + mention_mod + ' for assistance?');
     }
     return(output);
   }
-  
+
   // check that request belongs to the channel from which command was sent
   if (channelid !== row.channelid) {
     output.msg = ('error: The request ' + uniqueid + ' does not appear to belong to the channel you are writing from. '+
                                            'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, please contact ' + mention_mod + '.');
     return(output);
   }
-  
+
   // check that user that sent the request has the right to proceed
   if (cmd==='volunteer'){
     if (row.slackVolunteerID!=='' && userid!==row.slackVolunteerID){ // volunteerid is not blank and user that sent command does not match volunteerID
@@ -205,16 +205,16 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
       return(output);
     }
   }
-  
-  
-  // check command is compatible with request status  
+
+
+  // check command is compatible with request status
   var statusBranchVal;
   Object.keys(cmd_state_machine.command[cmd].status).forEach(function(key,index) { // iterate over the object properties of cmd_state_machine.command[cmd].status
     // key: the name of the object key
     var status_match = new RegExp(key).exec(row.requestStatus); // regexp match row.requestStatus with key
     if (status_match && status_match!=''){ // status matches key: this is the cmd_state_machine branch we want to take
       statusBranchVal = key;
-    }  
+    }
   });
   if (!statusBranchVal){ // if no branch match was found
     output.msg = 'error: There is a problem in the spreadsheet on the server. I couldn\'t recognise the current status value "'+row.requestStatus+'" of request '+uniqueid+'.'+
@@ -223,7 +223,7 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
     output.msg = cmd_state_machine.command[cmd].status[statusBranchVal].returnMsg;
     output.code = cmd_state_machine.command[cmd].status[statusBranchVal].returnCode;
   }
-  
+
   return output;
 }
 
@@ -233,15 +233,15 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
 //****************************************
 
 function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessage, access_token, postType, sheet_log){
-  
+
   // get relevant sheet values
   var colindex_uniqueid = tracking_sheet_col_index['uniqueid'];
-  var colindex_channelid = tracking_sheet_col_index['channelid']; 
+  var colindex_channelid = tracking_sheet_col_index['channelid'];
   var colindex_phone = tracking_sheet_col_index['requesterContact'];
-  var colindex_status = tracking_sheet_col_index['requestStatus']; 
-  var colindex_volunteerName = tracking_sheet_col_index['slackVolunteerName']; 
-  var colindex_volunteerID = tracking_sheet_col_index['slackVolunteerID']; 
-  var colindex_slackts = tracking_sheet_col_index['slackTS']; 
+  var colindex_status = tracking_sheet_col_index['requestStatus'];
+  var colindex_volunteerName = tracking_sheet_col_index['slackVolunteerName'];
+  var colindex_volunteerID = tracking_sheet_col_index['slackVolunteerID'];
+  var colindex_slackts = tracking_sheet_col_index['slackTS'];
   var colindex_slacktsurl = tracking_sheet_col_index['slackURL'];
   var colindex_requestername = tracking_sheet_col_index['requesterName'];
   var colindex_address = tracking_sheet_col_index['requesterAddr'];
@@ -249,7 +249,7 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
   var colindex_requestDate =  tracking_sheet_col_index['requestDate'];
   var colindex_requestInfo =  tracking_sheet_col_index['requestInfo'];
   var colindex_generalNeeds =  tracking_sheet_col_index['requesterGeneralNeeds'];
-  
+
   var uniqueid = sheet.getRange(row, colindex_uniqueid+1).getValue();
   var requesterName = sheet.getRange(row, colindex_requestername+1).getValue();
   var address = stripStartingNumbers(sheet.getRange(row, colindex_address+1).getValue());
@@ -258,7 +258,7 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
   var requestInfo = sheet.getRange(row, colindex_requestInfo+1).getValue();
   var generalNeeds = sheet.getRange(row, colindex_generalNeeds+1).getValue();
   var channelid = sheet.getRange(row, colindex_channelid+1).getValue();
-  
+
   // Build JSON post request
   var out_message_notification = 'A resident in your area has a request. Can you help?'; // text to display on mobile app notification
   var out_message = JSON.stringify([
@@ -273,16 +273,16 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
 		"fields": [
           {"type": "mrkdwn", "text": "*Requester:*"},
           {"type": "plain_text", "text": requesterName + " ("+ address +")"},
-			
+
           {"type": "mrkdwn", "text": "*Contact details:*"},
           {"type": "mrkdwn", "text": "To volunteer, send `/volunteer "+uniqueid+"` in channel."},
-          
+
           {"type": "mrkdwn", "text": "*Immediate request:*"},
           {"type": "plain_text", "text": requestType + " "},
-          
+
           {"type": "mrkdwn", "text": "*Date needed:*"},
           {"type": "plain_text", "text": requestDate + " "},
-          
+
           {"type": "mrkdwn", "text": "*Request additional info:*"},
           {"type": "plain_text","text": requestInfo + " "}
 		]
@@ -305,7 +305,7 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
       }
     }
   ]); // this message is formatted in such a way that all user-input text is escaped (type: "plain_text"). This is intended to protect against cross-site scripting attacks.
-  
+
   var options = {
     method: "post",
     contentType: 'application/json; charset=utf-8',
@@ -315,9 +315,9 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
                              channel: channelid,
                              as_user: true})
   };
-  
-  var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText(); // Send post request to Slack chat.postMessage API   
-  
+
+  var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText(); // Send post request to Slack chat.postMessage API
+
   // Update sheet status and slack_ts depending on success of post return-message
   var return_params = JSON.parse(return_message);
   if (return_params.ok === true){ // message was succesfully posted to channel
@@ -327,7 +327,7 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
     sheet.getRange(row, colindex_slackts+1).setValue('');
     sheet.getRange(row, colindex_status+1).setValue('FailSend');
   }
-  
+
   // update log sheet
   var row_log = sheet_log.getLastRow();
   sheet_log.getRange(row_log+1,1,1,5).setValues([[new Date(),uniqueid,'admin',postType,return_message]]);
