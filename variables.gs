@@ -90,6 +90,16 @@ function globalVariables(){
       // 'listallmine',
       // 'done_process_modal',
     ],
+    
+    // Information required to make POST requests to the event form used for async responses, and handle the events it triggers
+    EVENT_FORM: {
+      url:'https://docs.google.com/forms/u/0/d/e/1FAIpQLSdLD_pYmxUeWjabxXefEbU1r3pTIBfQFkpT4jvUqdGaMCrUYQ/formResponse',
+      entry_id:{
+        fctName:'entry.143767227',
+        args:'entry.1157732105'
+      },
+      values:["timestamp","function","args"] // structure of the event.values object sent to the onFormSubmit function
+    },
 
     WEBHOOK_CHATPOSTMESSAGE: 'https://slack.com/api/chat.postMessage',
     WEBHOOK_CHATPOSTMESSAGE_EPHEMERAL: 'https://slack.com/api/chat.postEphemeral',

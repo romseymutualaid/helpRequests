@@ -25,7 +25,8 @@ function processFunctionSync(functionName, args){
  */
 function processFunctionAsync(
   functionName, args, reply_url, immediateReturnMessage){
-  processFunctionAsyncWithTrigger(functionName, args, reply_url);
+//  processFunctionAsyncWithTrigger(functionName, args, reply_url);
+  processAsyncWithFormTrigger(functionName, args);
   return contentServerJsonReply(immediateReturnMessage);
 }
 
