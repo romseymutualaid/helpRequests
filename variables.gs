@@ -81,14 +81,14 @@ function globalVariables(){
     // Functions that are to be processed async
     ASYNC_FUNCTIONS: [
       'volunteer',
-      // 'assign',
+      'assign',
       'cancel',
-      // 'list',
-      // 'list_active',
-      // 'listall',
-      // 'listmine',
-      // 'listallmine',
-      // 'done_process_modal',
+      'list',
+      'list_active',
+      'listall',
+      'listmine',
+      'listallmine',
+      'done_process_modal',
     ],
 
     WEBHOOK_CHATPOSTMESSAGE: 'https://slack.com/api/chat.postMessage',
