@@ -94,38 +94,6 @@ function done_send_modal(args){
 }
 
 
-function done_process_modal(args){
-  /// done_process_modal: Read done modal submission. Process done command.
-
-  /// declare variables
-  var globvar = globalVariables();
-  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
-
-  // process done command
-  var out_message = done(args);
-
-  // send reply to slack user with response_url functionality
-  var response_url = args.response_url;
-  var options = {
-    method: "post",
-    contentType: 'application/json; charset=utf-8',
-    headers: {Authorization: 'Bearer ' + access_token},
-    payload: JSON.stringify({
-      "text": out_message,
-      "response_type": "ephemeral"
-    })
-  };
-  var return_message = UrlFetchApp.fetch(response_url, options).getContentText(); // Send post request to Slack response_url
-
-  // update log sheet
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow([new Date(), args.uniqueid, 'admin','confirmDoneUser', return_message]);
-
-  return ""; // Return empty string to close modal
-}
-
-
-
 function done(args){
   ///// COMMAND: /DONE
 
@@ -157,7 +125,7 @@ function done(args){
   // check command validity
   var cmd_check = checkCommandValidity('done',row,uniqueid,userid,channelid);
   if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return cmd_check.msg;
+    return textToJsonBlocks(cmd_check.msg);
   }
 
   // reply to slack thread to confirm done instance (chat.postMessage method)
@@ -181,7 +149,7 @@ function done(args){
     log_sheet.appendRow([new Date(), uniqueid,'admin','confirmDone',return_message]);
 
     // return error to user
-    return ('error: Due to a technical incident, I was unable to process your command. Can you please ask ' + mention_requestCoord + ' to close the request manually?');
+    return textToJsonBlocks('error: Due to a technical incident, I was unable to process your command. Can you please ask ' + mention_requestCoord + ' to close the request manually?');
   }
 
   // update log sheet
@@ -204,6 +172,6 @@ function done(args){
   }
 
   // return private message to user
-  return(cmd_check.msg);
+  return textToJsonBlocks(cmd_check.msg);
 
 }
