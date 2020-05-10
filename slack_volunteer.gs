@@ -30,17 +30,11 @@ function volunteer (args){
 
   // reply to slack thread to confirm volunteer sign-up (chat.postMessage method)
   var out_message = '<@' + userid + '> has volunteered. :tada:';
-  var options = {
-      method: "post",
-      contentType: 'application/json; charset=utf-8',
-      headers: {Authorization: 'Bearer ' + access_token},
-      payload: JSON.stringify({text: out_message,
-                               thread_ts: row.slackTS,
-                               channel: channelid})
-    };
-  // Send post request to Slack chat.postMessage API
-  var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText();
-
+  var payload = makeSlackMessagePayload(null,
+                                        out_message,
+                                        row.channelid,
+                                        row.slackTS);
+  var return_message = postToSlack(payload,webhook_chatPostMessage);  
   // if post request was unsuccesful, do not update tracking sheet and return error
   var return_params = JSON.parse(return_message);
   if (return_params.ok !== true){ // message was not successfully posted to channel
