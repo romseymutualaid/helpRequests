@@ -258,7 +258,11 @@ class SlackEventWrapper {
     // Process Command
     if (globalVariables()["ASYNC_FUNCTIONS"].indexOf(fctName) != -1){
       // Handle Asyc
+      if(this.subtype==='done_modal'){
+        var immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
+      } else{
       var immediateReturnMessage = "Thank you for your message. I\'m a poor bot so please be patient... it should take me up to a few minutes to get back to you...";
+      }
       var reply_url = this.args.response_url;
       return processFunctionAsync(
         fctName, this.args, reply_url, immediateReturnMessage);
