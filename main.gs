@@ -23,7 +23,7 @@ function triggerOnFormSubmit (e){ // this is an installed trigger. see https://d
   
   
   // handle trigger depending on which form the submission originates from
-  var eventForm = globalVariables()['EVENT_FORM'];
+  var eventForm = JSON.parse(PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
   
   if (e.values.length === eventForm.values.length){ // this is a submission from the event form
     handleEventFormSubmission(e.values);
