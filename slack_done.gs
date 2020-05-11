@@ -185,7 +185,7 @@ function done(args){
   }
 
   // update log sheet
-  log_sheet.appendRow([new Date(), uniqueid,userid,'slackCommand','done']);
+  log_sheet.appendRow([new Date(), uniqueid,userid,'slackCommand','done', completionLastDetails]);
   log_sheet.appendRow([new Date(), uniqueid, 'admin','confirmDone', return_message]);
 
   // update tracking sheet
