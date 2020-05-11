@@ -25,7 +25,7 @@ function triggerOnFormSubmit (e){ // this is an installed trigger. see https://d
   var tracking_sheetname = globvar['TRACKING_SHEETNAME'];
 
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
-  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
+  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN_USER'); // confidential Slack API access token
 
   var formindex_channel = globvar['FORMINDEX_CHANNEL']; // channel form submit index
   var sheet_row_offset = globvar['SHEET_ROW_OFFSET']; // relative row offset between form response sheet and tracking sheet
@@ -69,7 +69,7 @@ function triggerOnEdit(e){ // this is an installed trigger. see https://develope
   var tracking_sheetname = globvar['TRACKING_SHEETNAME'];
 
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
-  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
+  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN_USER'); // confidential Slack API access token
 
   var tracking_sheet_col_order = globvar['SHEET_COL_ORDER'];
   var tracking_sheet_col_index = indexedObjectFromArray(tracking_sheet_col_order); // make associative object to easily get colindex from colname
