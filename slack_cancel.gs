@@ -1,10 +1,6 @@
 function cancel(args){
   ///// COMMAND: /CANCEL
-
-
-  var uniqueid = args.uniqueid;
-  var channelid = args.channelid;
-  var userid = args.userid;
+  var {uniqueid, channelid, userid} = args;
 
   /// declare variables
   var globvar = globalVariables();
@@ -15,7 +11,6 @@ function cancel(args){
   var log_sheet = new LogSheetWrapper();
 
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
-  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
 
   // find requested row in sheet
   var row = tracking_sheet.getRowByUniqueID(uniqueid);
@@ -23,22 +18,19 @@ function cancel(args){
   // check command validity
   var cmd_check = checkCommandValidity('cancel',row,uniqueid,userid,channelid);
   if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return textToJsonBlocks(cmd_check.msg);
+    return cmd_check.msg;
   }
 
 
   // reply to slack thread to confirm volunteer sign-up (chat.postMessage method)
   var out_message = '<!channel> <@' + row.slackVolunteerID + '> is no longer available. Can anyone else volunteer? Type `/volunteer ' + uniqueid + '`.';
-  var options = {
-      method: "post",
-      contentType: 'application/json; charset=utf-8',
-      headers: {Authorization: 'Bearer ' + access_token},
-      payload: JSON.stringify({text: out_message,
-                               thread_ts: row.slackTS,
-                               reply_broadcast: true,
-                               channel: row.channelid})
-  };
-  var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText(); // Send post request to Slack chat.postMessage API
+  var payload = JSON.stringify({
+    text: out_message,
+    thread_ts: row.slackTS,
+    reply_broadcast: true,
+    channel: row.channelid});
+
+  var return_message = postToSlack(payload, webhook_chatPostMessage);
 
   // if post request was unsuccesful, do not update tracking sheet and log error
   var return_params = JSON.parse(return_message);
@@ -47,7 +39,9 @@ function cancel(args){
     log_sheet.appendRow([new Date(), row.uniqueid, 'admin','confirmCancel', return_message]);
 
     // return error to user
-    return textToJsonBlocks('error: Due to a technical incident, I was unable to process your command. Can you please ask ' + mention_requestCoord + ' to remove you manually?');
+    return textToJsonBlocks(
+      `error: Due to a technical incident, I was unable to process your command.
+      Can you please ask ${mention_requestCoord} to remove you manually?`);
   }
 
   // write userid, username and status to sheet
@@ -61,7 +55,7 @@ function cancel(args){
   log_sheet.appendRow([new Date(), row.uniqueid, 'admin','confirmCancel', return_message]);
 
   // reply privately to user
-  return textToJsonBlocks(cmd_check.msg);
+  return cmd_check.msg;
 
 }
 
@@ -89,26 +83,26 @@ function cancel_su(rowindex){
 
   // reply to slack thread to confirm cancel (chat.postMessage method)
   var out_message = '<!channel> <@' + row.slackVolunteerID + '> is no longer available. Can anyone else volunteer? Type `/volunteer ' + row.uniqueid + '`.';
-  var options = {
-      method: "post",
-      contentType: 'application/json; charset=utf-8',
-      headers: {Authorization: 'Bearer ' + access_token},
-      payload: JSON.stringify({text: out_message,
-                               thread_ts: row.slackTS,
-                               reply_broadcast: true,
-                               channel: row.channelid})
-  };
-  var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText(); // Send post request to Slack chat.postMessage API
+  var payload = JSON.stringify({
+    text: out_message,
+    thread_ts: row.slackTS,
+    reply_broadcast: true,
+    channel: row.channelid});
+
+  var return_message = postToSlack(payload, webhook_chatPostMessage);
 
   // if post request was unsuccesful, do not update tracking sheet and log error
   var return_params = JSON.parse(return_message);
   if (return_params.ok !== true){ // message was not successfully posted to channel
 
     // update log sheet
-    log_sheet.appendRow([new Date(), row.uniqueid,'admin','confirmCancel',return_message]);
+    log_sheet.appendRow(
+      [new Date(), row.uniqueid,'admin','confirmCancel',return_message]);
 
     // return error to user
-    return textToJsonBlocks('error: Due to a technical incident, I was unable to process your command. Can you please ask ' + mention_requestCoord + ' to remove you manually?');
+    return textToJsonBlocks(
+      `error: Due to a technical incident, I was unable to process your command.
+      Can you please ask ${mention_requestCoord} to remove you manually?`);
   }
 
   // write userid, username and status to sheet
@@ -121,7 +115,11 @@ function cancel_su(rowindex){
   log_sheet.appendRow([new Date(), row.uniqueid,'admin','slackCommand','cancel']);
   log_sheet.appendRow([new Date(), row.uniqueid, 'admin','confirmCancel', return_message]);
 
-  return textToJsonBlocks('You just cancelled your offer for help for <' + row.slackURL + '|request ' + row.uniqueid + '> (' + row.requesterName + ', ' + row.requesterAddr + '). '+
-                          'I\'ve notified the channel in the help request thread.');
+  var request_formatted = requestFormatted(
+    row.slackURL, uniqueid, row.requesterName, row.requesterAddr);
+
+  return textToJsonBlocks(
+    `You just cancelled your offer for help for ${request_formatted}
+    I've notified the channel in the help request thread.`);
 
 }

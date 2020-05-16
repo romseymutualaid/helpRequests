@@ -87,10 +87,15 @@ function done_send_modal(args){
   var return_params = JSON.parse(return_message);
   var return_ok = return_params.ok;
   if (return_ok !== true){
-    return textToJsonBlocks('I failed to open the /done submission form. Can you please notify a developer? This is the error message:\n'+return_message);
+    return textToJsonBlocks(
+      `I failed to open the \`/done\` submission form. Can you please notify a developer?
+      This is the error message:
+      ${return_message}`);
   }
 
-  return textToJsonBlocks('A request completion form will open in less than 3 seconds... if not, please type `/done '+uniqueid+'` again.');
+  return textToJsonBlocks(
+    `A request completion form will open in less than 3 seconds...
+    If not, please type \`/done ${uniqueid}\` again.`);
 }
 
 
@@ -102,26 +107,21 @@ function done_process_modal(args){
   var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
 
   // process done command
-  var out_message = done(args);
+  // Note: done returns JSON.stringify({blocks:[...]})
+  // We need to unpack and repack to mark it as ephemeral.
+  var payload = JSON.parse(done(args));
+  payload["response_type"] = "ephemeral";
+  payload = JSON.stringify(payload);
 
   // send reply to slack user with response_url functionality
   var response_url = args.response_url;
-  var options = {
-    method: "post",
-    contentType: 'application/json; charset=utf-8',
-    headers: {Authorization: 'Bearer ' + access_token},
-    payload: JSON.stringify({
-      "text": out_message,
-      "response_type": "ephemeral"
-    })
-  };
-  var return_message = UrlFetchApp.fetch(response_url, options).getContentText(); // Send post request to Slack response_url
+  var return_message = postToSlack(payload, response_url)
 
   // update log sheet
   var log_sheet = new LogSheetWrapper();
   log_sheet.appendRow([new Date(), args.uniqueid, 'admin','confirmDoneUser', return_message]);
 
-  return ""; // Return empty string to close modal
+  return textToJsonBlocks("Thanks!");
 }
 
 
@@ -162,16 +162,13 @@ function done(args){
 
   // reply to slack thread to confirm done instance (chat.postMessage method)
   var out_message = 'Thanks for helping out <@' + row.slackVolunteerID + '>! :nerd_face:';
-  var options = {
-    method: "post",
-    contentType: 'application/json; charset=utf-8',
-    headers: {Authorization: 'Bearer ' + access_token},
-    payload: JSON.stringify({text: out_message,
-                             thread_ts: row.slackTS,
-                             channel: row.channelid})
-  };
+  var payload = JSON.stringify({
+    text: out_message,
+    thread_ts: row.slackTS,
+    channel: row.channelid});
+
   // Send post request to Slack chat.postMessage API
-  var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText();
+  var return_message = postToSlack(payload, webhook_chatPostMessage);
 
   // if post request was unsuccesful, do not update tracking sheet and return error
   var return_params = JSON.parse(return_message);
@@ -181,7 +178,9 @@ function done(args){
     log_sheet.appendRow([new Date(), uniqueid,'admin','confirmDone',return_message]);
 
     // return error to user
-    return ('error: Due to a technical incident, I was unable to process your command. Can you please ask ' + mention_requestCoord + ' to close the request manually?');
+    return textToJsonBlocks(
+      `error: Due to a technical incident, I was unable to process your command.
+      Can you please ask ${mention_requestCoord} to close the request manually?`);
   }
 
   // update log sheet
@@ -204,6 +203,6 @@ function done(args){
   }
 
   // return private message to user
-  return(cmd_check.msg);
+  return cmd_check.msg;
 
 }

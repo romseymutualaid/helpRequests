@@ -50,7 +50,6 @@ function globalVariables(){
       "requestStatus",
       "slackTS",
       "slackVolunteerName",
-      "channelid",
       "slackVolunteerID",
       "completionCount",
       "completionLastTimestamp",
@@ -90,7 +89,7 @@ function globalVariables(){
       'listallmine',
       'done_process_modal',
     ],
-      
+
       // Which method should be used for delayed reponses?
 //      ASYNC_METHOD:"processFunctionAsyncWithTrigger", // time-based trigger
       ASYNC_METHOD:"processAsyncWithFormTrigger", // form-based trigger
