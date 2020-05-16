@@ -88,14 +88,14 @@ function done_send_modal(args){
   var return_ok = return_params.ok;
   if (return_ok !== true){
     return textToJsonBlocks(
-      `I failed to open the \`/done\` submission form. Can you please notify a developer?
-      This is the error message:
+`I failed to open the \`/done\` submission form. Can you please notify a developer?
+This is the error message:
       ${return_message}`);
   }
 
   return textToJsonBlocks(
-    `A request completion form will open in less than 3 seconds...
-    If not, please type \`/done ${uniqueid}\` again.`);
+`A request completion form will open in less than 3 seconds...
+If not, please type \`/done ${uniqueid}\` again.`);
 }
 
 

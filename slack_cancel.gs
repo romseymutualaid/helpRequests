@@ -23,7 +23,7 @@ function cancel(args){
 
 
   // reply to slack thread to confirm volunteer sign-up (chat.postMessage method)
-  var out_message = '<!channel> <@' + row.slackVolunteerID + '> is no longer available. Can anyone else volunteer? Type `/volunteer ' + uniqueid + '`.';
+  var out_message = `<!channel> <@${row.slackVolunteerID}> is no longer available. Can anyone else volunteer? Type \`/volunteer ${uniqueid} \``;
   var payload = JSON.stringify({
     text: out_message,
     thread_ts: row.slackTS,
@@ -40,8 +40,8 @@ function cancel(args){
 
     // return error to user
     return textToJsonBlocks(
-      `error: Due to a technical incident, I was unable to process your command.
-      Can you please ask ${mention_requestCoord} to remove you manually?`);
+`error: Due to a technical incident, I was unable to process your command.
+Can you please ask ${mention_requestCoord} to remove you manually?`);
   }
 
   // write userid, username and status to sheet
