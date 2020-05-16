@@ -323,6 +323,8 @@ function postRequest(sheet, row, tracking_sheet_col_index, webhook_chatPostMessa
   if (return_params.ok === true){ // message was succesfully posted to channel
     sheet.getRange(row, colindex_slackts+1).setValue(return_params.ts); // update slack ts field
     sheet.getRange(row, colindex_status+1).setValue('Sent'); // update status field
+    sheet.getRange(row, colindex_volunteerID+1).setValue(''); // clear volunteerID
+    sheet.getRange(row, colindex_volunteerName+1).setValue(''); // clear volunteerName
   } else{
     sheet.getRange(row, colindex_slackts+1).setValue('');
     sheet.getRange(row, colindex_status+1).setValue('FailSend');

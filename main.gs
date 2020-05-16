@@ -16,12 +16,7 @@ function doPost(e) { // catches slack POST requests
 
 function triggerOnFormSubmit (e){ // this is an installed trigger. see https://developers.google.com/apps-script/guides/triggers/installable
   // this function is called when manual form submission occurs. We use this trigger to detect incoming help requests, and when these already have a channel specified, are directly sent to the relevant slack channel.
-  
-  
-  // check syntax
-  //**** todo ****//
-  
-  
+
   // handle trigger depending on which form the submission originates from
   var eventForm = JSON.parse(PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
   
@@ -64,8 +59,6 @@ function triggerOnFormSubmit (e){ // this is an installed trigger. see https://d
     }
     
   }
-
-
 }
 
 
@@ -83,7 +76,7 @@ function triggerOnEdit(e){ // this is an installed trigger. see https://develope
   var tracking_sheetname = globvar['TRACKING_SHEETNAME'];
 
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
-  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
+  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN_USER'); // confidential Slack API access token
 
   var tracking_sheet_col_order = globvar['SHEET_COL_ORDER'];
   var tracking_sheet_col_index = indexedObjectFromArray(tracking_sheet_col_order); // make associative object to easily get colindex from colname
