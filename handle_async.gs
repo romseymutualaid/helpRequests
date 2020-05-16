@@ -23,9 +23,12 @@ function processFunctionSync(functionName, args){
  * @param {*} reply_url
  * @param {*} immediateReturnMessage
  */
-function processFunctionAsync(
-  functionName, args, reply_url, immediateReturnMessage){
-  processFunctionAsyncWithTrigger(functionName, args, reply_url);
+function processFunctionAsync(functionName, args, reply_url, immediateReturnMessage){
+  // Queue an async reply with the asyncMethod defined in globalVariables (i.e. either a time-based or form-based trigger)
+  var asyncMethod = globalVariables().ASYNC_METHOD;
+  GlobalFuncHandle[asyncMethod](functionName, args, reply_url);
+  
+  // Return immediate response to user
   return contentServerJsonReply(immediateReturnMessage);
 }
 

@@ -90,6 +90,10 @@ function globalVariables(){
       'listallmine',
       'done_process_modal',
     ],
+      
+      // Which method should be used for delayed reponses?
+//      ASYNC_METHOD:"processFunctionAsyncWithTrigger", // time-based trigger
+      ASYNC_METHOD:"processAsyncWithFormTrigger", // form-based trigger
 
     WEBHOOK_CHATPOSTMESSAGE: 'https://slack.com/api/chat.postMessage',
     WEBHOOK_CHATPOSTMESSAGE_EPHEMERAL: 'https://slack.com/api/chat.postEphemeral',
