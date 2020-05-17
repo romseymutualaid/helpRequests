@@ -109,14 +109,14 @@ function checkCommandValidity (cmd, row, uniqueid, userid, channelid){
               returnCode:false,
               returnMsg: textToJsonBlocks(
 `error: You cannot complete ${request_formatted} because it is yet to be assigned.
-Type \`${listmine}\` to list the requests you are currently volunteering for in this channel.
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
 If you think there is a mistake, please contact ${mention_mod}.`)
             },
             "Escalated|Signposted":{
               returnCode:false,
               returnMsg: textToJsonBlocks(
 `error: You cannot complete ${request_formatted} because it is permanently closed.
-Type `/listmine` to list the requests you are currently volunteering for in this channel.
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
 If you think there is a mistake, please contact \`${mention_mod}\` `)
             },
             "Assigned|Ongoing|ToClose\\?|Closed":{

@@ -100,38 +100,9 @@ If not, please type \`/done ${uniqueid}\` again.`);
 
 
 function done_process_modal(args){
-  /// done_process_modal: Read done modal submission. Process done command.
-
-  /// declare variables
-  var globvar = globalVariables();
-  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
-
-  // process done command
-  // Note: done returns JSON.stringify({blocks:[...]})
-  // We need to unpack and repack to mark it as ephemeral.
-  var payload = JSON.parse(done(args));
-  payload["response_type"] = "ephemeral";
-  payload = JSON.stringify(payload);
-
-  // send reply to slack user with response_url functionality
-  var response_url = args.response_url;
-  var return_message = postToSlack(payload, response_url)
-
-  // update log sheet
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow([new Date(), args.uniqueid, 'admin','confirmDoneUser', return_message]);
-
-  return textToJsonBlocks("Thanks!");
-}
-
-
-
-function done(args){
   ///// COMMAND: /DONE
 
-  var uniqueid = args.uniqueid;
-  var channelid = args.channelid;
-  var userid = args.userid;
+  var { uniqueid, channelid, userid } = args;
 
   var modalResponseVals = args.more;
   var requestNextStatus = modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value;
@@ -149,7 +120,6 @@ function done(args){
   var log_sheet = new LogSheetWrapper();
 
   var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
-  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
 
   // find requested row in sheet
   var row = tracking_sheet.getRowByUniqueID(uniqueid);

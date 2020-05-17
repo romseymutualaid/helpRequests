@@ -256,7 +256,14 @@ class SlackEventWrapper {
 
 
     // Process Command
-    if (globalVariables()["ASYNC_FUNCTIONS"].indexOf(fctName) != -1){
+    if (fctName == "done_process_modal"){
+      // done_process_modal is special: we need to reply with an empty string to
+      // close the model. The function then needs to be handled async.
+      var immediateReturnMessage = "";
+      var reply_url = this.args.response_url;
+      return processFunctionAsync(
+        fctName, this.args, reply_url, immediateReturnMessage);
+    } else if (globalVariables()["ASYNC_FUNCTIONS"].indexOf(fctName) != -1){
       // Handle Asyc
       var immediateReturnMessage = "Thank you for your message. I\'m a poor bot so please be patient... it should take me up to a few minutes to get back to you...";
       var reply_url = this.args.response_url;
