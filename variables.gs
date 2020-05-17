@@ -87,7 +87,6 @@ function globalVariables(){
       'listall',
       'listmine',
       'listallmine',
-      'done_process_modal',
     ],
 
       // Which method should be used for delayed reponses?
