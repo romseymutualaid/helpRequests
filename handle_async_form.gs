@@ -1,8 +1,8 @@
-function processAsyncWithFormTrigger(functionName, args) {
+function processAsyncWithFormTrigger(functionName, args, reply_url) {
   // Submit request to event form, to allow a delayed response
   
   // construct post request
-  var eventForm = globalVariables()['EVENT_FORM'];  
+  var eventForm = JSON.parse(PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
   var options = {
     method:'post',
     payload:{

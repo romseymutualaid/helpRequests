@@ -1,45 +1,31 @@
 function volunteer (args){
   ///// COMMAND: /VOLUNTEER
-
-
-  var uniqueid = args.uniqueid;
-  var channelid = args.channelid;
-  var userid = args.userid;
-  var username = args.username;
-
+  var {uniqueid, channelid, userid, username} = args;
 
   /// declare variables
   var globvar = globalVariables();
-
   var mention_requestCoord = globvar['MENTION_REQUESTCOORD'];
+  var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
 
   var tracking_sheet = new TrackingSheetWrapper();
-  var log_sheet = new LogSheetWrapper();
-
-  var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
-  var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
-
-  // find requested row in sheet
   var row = tracking_sheet.getRowByUniqueID(uniqueid);
+
+  var log_sheet = new LogSheetWrapper();
 
   // check command validity
   var cmd_check = checkCommandValidity('volunteer',row,uniqueid,userid,channelid);
   if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return textToJsonBlocks(cmd_check.msg); // this return is problematic because it is a mix of block (success reply) and non-block values
+    return cmd_check.msg; // this return is problematic because it is a mix of block (success reply) and non-block values
   }
 
   // reply to slack thread to confirm volunteer sign-up (chat.postMessage method)
-  var out_message = '<@' + userid + '> has volunteered. :tada:';
-  var options = {
-      method: "post",
-      contentType: 'application/json; charset=utf-8',
-      headers: {Authorization: 'Bearer ' + access_token},
-      payload: JSON.stringify({text: out_message,
-                               thread_ts: row.slackTS,
-                               channel: channelid})
-    };
-  // Send post request to Slack chat.postMessage API
-  var return_message = UrlFetchApp.fetch(webhook_chatPostMessage, options).getContentText();
+  var out_message = `<@${userid}> has volunteered. :tada:`;
+  var payload = JSON.stringify({
+    text: out_message,
+    thread_ts: row.slackTS,
+    channel: channelid,
+  });
+  var return_message = postToSlack(payload, webhook_chatPostMessage);
 
   // if post request was unsuccesful, do not update tracking sheet and return error
   var return_params = JSON.parse(return_message);
@@ -49,7 +35,9 @@ function volunteer (args){
     log_sheet.appendRow([new Date(), uniqueid,'admin','confirmVolunteer',return_message]);
 
     // return error to user
-    return textToJsonBlocks('error: Due to a technical incident, I was unable to process your command. Can you please ask ' + mention_requestCoord + ' to sign you up manually?');
+    return textToJsonBlocks(
+`error: Due to a technical incident, I was unable to process your command.
+Can you please ask ${mention_requestCoord} to sign you up manually?`);
   }
 
   // write userid, username and status to sheet
@@ -63,7 +51,7 @@ function volunteer (args){
   log_sheet.appendRow([new Date(), uniqueid, 'admin','confirmVolunteer', return_message]);
 
   // return private message to user
-  return (cmd_check.msg); // success reply is already in blocks
+  return cmd_check.msg; // success reply is already in blocks
 }
 
 
