@@ -15,7 +15,7 @@ function volunteer (args){
   // check command validity
   var cmd_check = checkCommandValidity('volunteer',row,uniqueid,userid,channelid);
   if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return textToJsonBlocks(cmd_check.msg);
+    return cmd_check.msg;
   }
 
   // reply to slack thread to confirm volunteer sign-up (chat.postMessage method)
@@ -33,7 +33,6 @@ function volunteer (args){
 
     // update log sheet
     log_sheet.appendRow([new Date(), uniqueid,'admin','confirmVolunteer',return_message]);
-    log_sheet.appendRow([new Date(), uniqueid,'admin','confirmVolunteerRequest', payload]);
 
     // return error to user
     return textToJsonBlocks(

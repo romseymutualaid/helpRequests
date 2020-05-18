@@ -117,7 +117,7 @@ If you think there is a mistake, please contact ${mention_mod}.`)
               returnMsg: textToJsonBlocks(
 `error: You cannot complete ${request_formatted} because it is permanently closed.
 Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
-If you think there is a mistake, please contact \`${mention_mod}\` `)
+If you think there is a mistake, please contact ${mention_mod}.`)
             },
             "Assigned|Ongoing|ToClose\\?|Closed":{
               returnCode:true,
@@ -160,10 +160,10 @@ your form submission to the request coordinator on-duty.`)
               returnCode:false,
               returnMsg:textToJsonBlocks(
 `Sorry, ${request_formatted} is not available.
-Its status is ${row.requestStatus}.
+Its status is "${row.requestStatus}".
 Volunteer is <@${row.slackVolunteerID}>.
 Type \`/list\` to list all the available requests in this channel.
-If you think there is a mistake, please contact ${mention_mod} `)
+If you think there is a mistake, please contact ${mention_mod}.`)
             }
           }
         },
@@ -181,7 +181,7 @@ If you think there is a mistake, please contact ${mention_mod}.`)
               returnMsg: textToJsonBlocks(
 `You were signed up on ${request_formatted} but it's now closed. We therefore won't remove you.
 Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
-If you think there is a mistake, please contact ${mention_mod}`)
+If you think there is a mistake, please contact ${mention_mod}.`)
             },
             "Assigned|Ongoing|ToClose\\?":{
               returnCode:true,
@@ -262,7 +262,7 @@ If you think there is a mistake, please contact ${mention_mod}.`);
   if (!statusBranchVal){ // if no branch match was found
     output.msg = textToJsonBlocks(
 `error: There is a problem in the spreadsheet on the server.
-I couldn't recognise the current status value "${row.requestStatus}+" of request ${uniqueid}.
+I couldn't recognise the current status value "${row.requestStatus}" of request ${uniqueid}.
 Please can you notify a developer and ask ${mention_mod} for assistance?`);
   } else{
     output.msg = cmd_state_machine.command[cmd].status[statusBranchVal].returnMsg;
