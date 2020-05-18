@@ -32,7 +32,7 @@ function triggerOnFormSubmit (e){ // this is an installed trigger. see https://d
     var tracking_sheetname = globvar['TRACKING_SHEETNAME'];
     
     var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
-    var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN'); // confidential Slack API access token
+    var access_token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN_USER'); // confidential Slack API access token
     
     var formindex_channel = globvar['FORMINDEX_CHANNEL']; // channel form submit index
     var sheet_row_offset = globvar['SHEET_ROW_OFFSET']; // relative row offset between form response sheet and tracking sheet

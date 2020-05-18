@@ -25,7 +25,7 @@ function volunteer (args){
   // check command validity
   var cmd_check = checkCommandValidity('volunteer',row,uniqueid,userid,channelid);
   if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return cmd_check.msg;
+    return textToJsonBlocks(cmd_check.msg);
   }
 
   // reply to slack thread to confirm volunteer sign-up (chat.postMessage method)
