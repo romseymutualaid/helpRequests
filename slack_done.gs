@@ -98,8 +98,6 @@ This is the error message:
 If not, please type \`/done ${uniqueid}\` again.`);
 }
 
-
-
 function done(args){
   ///// COMMAND: /DONE
 
@@ -128,7 +126,7 @@ function done(args){
   // check command validity
   var cmd_check = checkCommandValidity('done',row,uniqueid,userid,channelid);
   if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return cmd_check.msg;
+    return textToJsonBlocks(cmd_check.msg);
   }
 
   // reply to slack thread to confirm done instance (chat.postMessage method)
@@ -175,5 +173,4 @@ function done(args){
 
   // return private message to user
   return cmd_check.msg;
-
 }

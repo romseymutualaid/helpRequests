@@ -88,8 +88,19 @@ function globalVariables(){
       'listall',
       'listmine',
       'listallmine',
+      //'done_send_modal',
       'done'
     ],
+    
+    // Information required to make POST requests to the event form used for async responses, and handle the events it triggers
+    EVENT_FORM: {
+      url:'https://docs.google.com/forms/u/0/d/e/1FAIpQLSdGMwONXZ-4BOWPUGvFpu47IenfKhDIpksV-g9YSm771GiGXg/formResponse',
+      entry_id:{
+        fctName:'entry.1743825050',
+        args:'entry.748121704'
+      },
+      values:["timestamp","function","args"] // structure of the event.values object sent to the onFormSubmit function
+    },
 
       // Which method should be used for delayed reponses?
 //      ASYNC_METHOD:"processFunctionAsyncWithTrigger", // time-based trigger

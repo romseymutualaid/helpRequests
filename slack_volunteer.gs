@@ -15,7 +15,7 @@ function volunteer (args){
   // check command validity
   var cmd_check = checkCommandValidity('volunteer',row,uniqueid,userid,channelid);
   if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return cmd_check.msg;
+    return textToJsonBlocks(cmd_check.msg); // this return is problematic because it is a mix of block (success reply) and non-block values
   }
 
   // reply to slack thread to confirm volunteer sign-up (chat.postMessage method)
@@ -51,7 +51,7 @@ Can you please ask ${mention_requestCoord} to sign you up manually?`);
   log_sheet.appendRow([new Date(), uniqueid, 'admin','confirmVolunteer', return_message]);
 
   // return private message to user
-  return cmd_check.msg;
+  return (cmd_check.msg); // success reply is already in blocks
 }
 
 

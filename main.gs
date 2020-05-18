@@ -39,7 +39,6 @@ function triggerOnFormSubmit (e){ // this is an installed trigger. see https://d
     var tracking_sheet_col_order = globvar['SHEET_COL_ORDER'];
     var tracking_sheet_col_index = indexedObjectFromArray(tracking_sheet_col_order); // make associative object to easily get colindex from colname
 
-
     // retrieve relevant information from onFormSubmit trigger event
     var channel = e.values[formindex_channel];
     var row_response = e.range.rowStart; // row where submission is in response sheet
