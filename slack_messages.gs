@@ -103,20 +103,27 @@ function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_reques
 
 
 /**
- * Send a post request to slack.
- * @param {string} message
- * @param {sring} url
+ * Post to slack.
+ * @param {string} payload
+ * @param {string} url
+ * @param {boolean} as_user
  */
-var postToSlack = function(message, url){
-  var access_token = PropertiesService
-                     .getScriptProperties()
-                     .getProperty('ACCESS_TOKEN');
+var postToSlack = function(payload, url, as_user=false){
+  if (as_user){
+    var access_token = PropertiesService
+                      .getScriptProperties()
+                      .getProperty('ACCESS_TOKEN_USER');
+  } else {
+    var access_token = PropertiesService
+                      .getScriptProperties()
+                      .getProperty('ACCESS_TOKEN');
+  }
 
   var options = {
     method: "post",
     contentType: 'application/json; charset=utf-8',
     headers: {Authorization: 'Bearer ' + access_token},
-    payload: message
+    payload: payload
   };
 
   return UrlFetchApp

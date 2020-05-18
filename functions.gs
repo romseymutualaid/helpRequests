@@ -40,7 +40,22 @@ function stripStartingNumbers(s){
 // slack command functions
 //****************************************
 
-function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
+function requestFormatted(slackURL, uniqueid, requesterName, requesterAddr){
+  return `<${slackURL}|request ${uniqueid}> (${requesterName}, ${requesterAddr})`;
+}
+
+
+/**
+ * Check command validity. Always returns an object of the form:
+ * {code:bool, msg:string}
+ * Where msg is either empty or of the form: JSON.stringify({blocks: [...]})
+ * @param {*} cmd
+ * @param {*} row
+ * @param {*} uniqueid
+ * @param {*} userid
+ * @param {*} channelid
+ */
+function checkCommandValidity (cmd, row, uniqueid, userid, channelid){
   // checkCommandValidity: Checks the following items and returns an output.code (true or false) and output.message (string) accordingly...
   // 1. has script found the correct row in spreadsheet (i.e. uniqueid consistency)?
   // 2. is command sent from the correct channel?
@@ -83,7 +98,8 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
   var mod_userid = globvar['MOD_USERID'];
   var mention_mod = '<@'+mod_userid+'>';
 
-  var request_formatted = '<' + row.slackURL + '|request ' + row.uniqueid + '> (' + row.requesterName + ', ' + row.requesterAddr + ')';
+  var request_formatted = requestFormatted(
+    row.slackURL, uniqueid, row.requesterName, row.requesterAddr);
 
   var cmd_state_machine={ // this is the finite state machine object, which contains the return messages and codes for every possible {command,status} combination
       command:{
@@ -91,18 +107,24 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
           status:{
             "Sent|FailSend|Re-open":{
               returnCode:false,
-              returnMsg:'error: You cannot complete '+request_formatted+' because it is yet to be assigned. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
+              returnMsg: textToJsonBlocks(
+`error: You cannot complete ${request_formatted} because it is yet to be assigned.
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+If you think there is a mistake, please contact ${mention_mod}.`)
             },
             "Escalated|Signposted":{
               returnCode:false,
-              returnMsg:'error: You cannot complete '+request_formatted+' because it is permanently closed. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
+              returnMsg: textToJsonBlocks(
+`error: You cannot complete ${request_formatted} because it is permanently closed.
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+If you think there is a mistake, please contact \`${mention_mod}\` `)
             },
             "Assigned|Ongoing|ToClose\\?|Closed":{
               returnCode:true,
-              returnMsg:'You have confirmed completing '+request_formatted+'. '+
-                                         'I\'ve notified volunteers in the help request thread and sent your form submission to the request coordinator on-duty.'
+              returnMsg: textToJsonBlocks(
+`You have confirmed completing ${request_formatted}.
+I've notified volunteers in the help request thread and sent
+your form submission to the request coordinator on-duty.`)
             }
           }
         },
@@ -136,9 +158,12 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
             },
             "FailSend|ToClose\\?|Closed|Escalated|Signposted":{
               returnCode:false,
-              returnMsg:'Sorry, '+request_formatted+' is not available. Its status is ' + row.requestStatus + '. '+
-                                             'Volunteer is <@' + row.slackVolunteerID + '>. Type `/list` to list all the available requests in this channel. '+
-                                             'If you think there is a mistake, please contact ' + mention_mod + '.'
+              returnMsg:textToJsonBlocks(
+`Sorry, ${request_formatted} is not available.
+Its status is ${row.requestStatus}.
+Volunteer is <@${row.slackVolunteerID}>.
+Type \`/list\` to list all the available requests in this channel.
+If you think there is a mistake, please contact ${mention_mod} `)
             }
           }
         },
@@ -146,17 +171,23 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
           status:{
             "Sent|FailSend|Re-open":{
               returnCode:false,
-              returnMsg:'error: You cannot cancel '+request_formatted+' because it is yet to be assigned. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
+              returnMsg: textToJsonBlocks(
+`error: You cannot cancel ${request_formatted} because it is yet to be assigned.
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+If you think there is a mistake, please contact ${mention_mod}.`)
             },
             "Escalated|Signposted|Closed":{
               returnCode:false,
-              returnMsg:'You were signed up on '+request_formatted+', but it\'s now closed. We therefore won\'t remove you. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.'
+              returnMsg: textToJsonBlocks(
+`You were signed up on ${request_formatted} but it's now closed. We therefore won't remove you.
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+If you think there is a mistake, please contact ${mention_mod}`)
             },
             "Assigned|Ongoing|ToClose\\?":{
               returnCode:true,
-              returnMsg:'You just cancelled your offer for help for '+request_formatted+'. I\'ve notified the channel.'
+              returnMsg: textToJsonBlocks(
+`You just cancelled your offer for help for ${request_formatted}.
+I've notified the channel.`)
             }
           }
         }
@@ -171,37 +202,49 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
   // check that uniqueid of the row and the requested uniqueid match
   if (row.uniqueid != uniqueid){
     if (row.uniqueid == ''){ // uniqueid points to empty row --> suggests wrong number was entered
-      output.msg = ('error: I couldn\'t find the request number `' + uniqueid + '`. Did you type the right number? '+
-                    'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, please contact ' + mention_mod + '.');
+      output.msg = textToJsonBlocks(
+`error: I couldn't find the request number \`${uniqueid}\`. Did you type the right number?
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+If the issue persists, please contact ${mention_mod}.`);
     } else { // uniqueid points to non-empty row but mismatch --> this is a spreadsheet issue. suggests rows are not sorted by uniqueid.
-      output.msg = ('error: There is a problem in the spreadsheet on the server. You asked for request-number '+uniqueid +', but I could only find request-number '+ row.uniqueid+'. '+
-            'Please can you notify a developer and ask ' + mention_mod + ' for assistance?');
+      output.msg = textToJsonBlocks(
+`error: There is a problem in the spreadsheet on the server.
+You asked for request-number ${uniqueid}, but I could only find request-number ${row.uniqueid}.
+Please can you notify a developer and ask ${mention_mod} for assistance?`);
     }
     return(output);
   }
 
   // check that request belongs to the channel from which command was sent
   if (channelid !== row.channelid) {
-    output.msg = ('error: The request ' + uniqueid + ' does not appear to belong to the channel you are writing from. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If the issue persists, please contact ' + mention_mod + '.');
+    output.msg = textToJsonBlocks(
+`error: The request ${uniqueid} does not appear to belong to the channel you are writing from.
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+If the issue persists, please contact ${mention_mod}.`);
     return(output);
   }
 
   // check that user that sent the request has the right to proceed
   if (cmd==='volunteer'){
     if (row.slackVolunteerID!=='' && userid!==row.slackVolunteerID){ // volunteerid is not blank and user that sent command does not match volunteerID
-      output.msg = ('error: Your command failed because '+request_formatted+' is taken by someone else (<@' + row.slackVolunteerID + '>). '+
-                                           'Type `/list` to list all the available requests in this channel. If you think there is a mistake, please contact ' + mention_mod + '.');
+      output.msg = textToJsonBlocks(
+`error: Your command failed because ${request_formatted} is taken by someone else (<@${row.slackVolunteerID}>).
+Type \`/list\` to list all the available requests in this channel.
+If you think there is a mistake, please contact ${mention_mod}.`);
       return(output);
     }
   } else if (cmd==='cancel' || cmd==='done'){
     if (row.slackVolunteerID === '') { // no one is assigned
-      output.msg = ('error: Your command failed because '+request_formatted+' is yet to be assigned. '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.');
+      output.msg = textToJsonBlocks(
+`error: Your command failed because ${request_formatted} is yet to be assigned.
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+If you think there is a mistake, please contact ${mention_mod}.`);
       return(output);
     } else if (row.slackVolunteerID !== '' && userid!==row.slackVolunteerID && userid!==mod_userid) { // someone else than userid is assigned, and userid is not moderator
-      output.msg = ('error: Your command failed because '+request_formatted+' is taken by someone else (<@' + row.slackVolunteerID + '>). '+
-                                           'Type `/listmine` to list the requests you are currently volunteering for in this channel. If you think there is a mistake, please contact ' + mention_mod + '.');
+      output.msg = textToJsonBlocks(
+`error: Your command failed because ${request_formatted} is taken by someone else (<@${row.slackVolunteerID}>).
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+If you think there is a mistake, please contact ${mention_mod}.`);
       return(output);
     }
   }
@@ -217,8 +260,10 @@ function checkCommandValidity (cmd,row,uniqueid,userid,channelid){
     }
   });
   if (!statusBranchVal){ // if no branch match was found
-    output.msg = 'error: There is a problem in the spreadsheet on the server. I couldn\'t recognise the current status value "'+row.requestStatus+'" of request '+uniqueid+'.'+
-            'Please can you notify a developer and ask ' + mention_mod + ' for assistance?';
+    output.msg = textToJsonBlocks(
+`error: There is a problem in the spreadsheet on the server.
+I couldn't recognise the current status value "${row.requestStatus}+" of request ${uniqueid}.
+Please can you notify a developer and ask ${mention_mod} for assistance?`);
   } else{
     output.msg = cmd_state_machine.command[cmd].status[statusBranchVal].returnMsg;
     output.code = cmd_state_machine.command[cmd].status[statusBranchVal].returnCode;
