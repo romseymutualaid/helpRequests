@@ -57,9 +57,9 @@ function globalVariables(){
 
     // A key-value object to associate slack command strings to the internal function name they should call
     SLACKCMD_TO_FUNCTIONNAME: {
-      'done_modal':'done_process_modal',
+      'done_modal':'done',
       '/_volunteer':'volunteer',
-      '/_volunteer2':'volunteer_debug',
+//      '/_volunteer2':'volunteer_debug',
       '/_assign':'assign',
       '/_cancel':'cancel',
       '/_done':'done_send_modal',
@@ -68,6 +68,7 @@ function globalVariables(){
       '/_listall':'listall',
       '/_listmine':'listmine',
       '/_listallmine':'listallmine',
+      '/jb_l':'list',
       '/jb_v':'volunteer',
       '/jb_c':'cancel',
       '/jb_d':'done_send_modal',
@@ -87,6 +88,7 @@ function globalVariables(){
       'listall',
       'listmine',
       'listallmine',
+      'done'
     ],
 
       // Which method should be used for delayed reponses?
