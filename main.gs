@@ -2,8 +2,8 @@ function doPost(e) { // catches slack POST requests
   if (typeof e !== 'undefined') {
 
     // parse the event object and proceed if successful
-    var slackEvent = new SlackEventWrapper();
-    var parsingCheck = slackEvent.parseEvent(e);
+    var slackEvent = new SlackEventBuilder(e);
+    var parsingCheck = slackEvent.parse();
     if (!parsingCheck.code){
       return contentServerJsonReply(parsingCheck.msg);
     }

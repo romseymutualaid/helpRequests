@@ -11,7 +11,7 @@
  */
 function processFunctionSync(functionName, args){
   var message = GlobalFuncHandle[functionName](args);
-  return contentServerJsonReply(message);
+  return message;
 }
 
 
@@ -29,7 +29,7 @@ function processFunctionAsync(functionName, args, reply_url, immediateReturnMess
   GlobalFuncHandle[asyncMethod](functionName, args, reply_url);
   
   // Return immediate response to user
-  return contentServerJsonReply(immediateReturnMessage);
+  return immediateReturnMessage;
 }
 
 /**
@@ -40,7 +40,7 @@ function processFunctionAsync(functionName, args, reply_url, immediateReturnMess
  * @param {*} reply_url
  */
 function processAndPostResults(functionName, args, reply_url){
-  var message = GlobalFuncHandle[functionName](args);
+  var message = processFunctionSync(functionName, args);
   var return_message = postToSlack(message, reply_url);
   var log_sheet = new LogSheetWrapper();
   log_sheet.appendRow(
