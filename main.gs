@@ -1,16 +1,14 @@
 function doPost(e) { // catches slack POST requests
-  if (typeof e !== 'undefined') {
-
-    // parse the event object and proceed if successful
+  try{
     var slackEvent = new SlackEventBuilder(e);
-    var parsingCheck = slackEvent.parse();
-    if (!parsingCheck.code){
-      return contentServerJsonReply(parsingCheck.msg);
-    }
-
-    // Handle event.
+    slackEvent.checkAuthenticity();
+    slackEvent.checkSyntax();
     return slackEvent.handleEvent();
   }
+  catch(errObj){
+    return contentServerJsonReply(errObj.message);
+  }
+  
 }
 
 

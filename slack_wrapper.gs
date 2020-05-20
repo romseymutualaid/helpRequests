@@ -38,79 +38,48 @@ class SlackEventWrapper {
     };
   }
 
-  parse(){
-    // quick check event authenticity
-    var authenticityCheck = this.checkAuthenticity();
-    if (!authenticityCheck.code){
-      return authenticityCheck;
-    }
-    
-    // quick check event syntax
-    var syntaxCheck = this.checkSyntax();
-    if (!syntaxCheck.code){
-      return syntaxCheck;
-    }
-    
-    return {code:true, msg:''}; // if all good, return success object
-  }
-
   checkAuthenticity(){
     // fetch validation variables
     var globvar = globalVariables();
     var teamid_true =  globvar['TEAM_ID'];
     var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request
 
-    // initialise return message
-    var output = {code:false, msg:''};
-
     // check token
     if(!token_true){ // check that token_true has been set in script properties
-      output.msg = 'error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.';
-      return output;
+      throw new Error('error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.');
     }
     if (this.token !== token_true) {
-      output.msg = 'error: Invalid token ' + this.token + ' . The command will not run. Please contact the web app developer.';
-      return output;
+      throw new Error('error: Invalid token ' + this.token + ' . The command will not run. Please contact the web app developer.');
     }
 
     // check request originates from our slack workspace
     if (this.teamid != teamid_true){
-      output.msg = 'error: You are sending your command from an unauthorised slack workspace.';
-      return output;
+      throw new Error('error: You are sending your command from an unauthorised slack workspace.');
     }
-
-    output.code=true;
-    return output;
   }
 
   checkSyntax(){
     // check syntax of this.type, this.subtype, and this.args depending on function to be called
 
-    // initialise output variable
-    var output = {code:false, msg:''};
-
     // check this.type
     var accepted_types = ['view_submission', 'command'];
     if(accepted_types.indexOf(this.type) < 0){ // if this.type does not match any accepted_types, return error
-      output.msg = 'error: I can\'t handle the event type "'+this.type+'".';
-      return output;
+       throw new Error('error: I can\'t handle the event type "'+this.type+'".');
     }
 
     // match doPost this.subtype with the function it is meant to call
     var fctName = this.slackCmd2FctName();
     if (!fctName){
-      output.msg = 'error: Sorry, the `' + this.subtype + '` command is not currently supported.';
-      return output;
+       throw new Error('error: Sorry, the `' + this.subtype + '` command is not currently supported.');
     }
 
     // check that function associated to this.subtype exists in global scope
     if (!GlobalFuncHandle[fctName]){
-      output.msg = 'error: Sorry, the `' + this.subtype + '` command is not properly connected on the server. Please contact the web app developer.';
-      return output;
+      throw new Error('error: Sorry, the `' + this.subtype + '` command is not properly connected on the server. Please contact the web app developer.');
     }
 
     // check argument syntax for fctName
-    return this.checkArgSyntaxRegexp(fctName);
+    this.checkArgSyntaxRegexp(fctName);
   }
   
   slackCmd2FctName(){
@@ -151,10 +120,8 @@ class SlackEventWrapper {
       }
     };
 
-    // initialise output object
-    var output = {code:false, msg:''};
-
     // iterate check over all potential arguments in syntax_object
+    var msg = ''; // initialise exception message
     Object.keys(syntax_object).forEach(function(key,index) { // iterate over the object properties of cmd_state_machine.command[cmd].status
     // key: the name of the object property
 
@@ -166,7 +133,7 @@ class SlackEventWrapper {
       // if argument is expected, check syntax. If wrong syntax, append appropriate error message. If correct syntax and if relevant, do some parsing.
 
       if (!syntax_object[key].arg || syntax_object[key].arg == ''){ // personalise error message if arg was not specified at all
-        output.msg += '\n' + syntax_object[key].fail_msg_empty;
+        msg += '\n' + syntax_object[key].fail_msg_empty;
       } else{
 
         // regexp match arg
@@ -174,7 +141,7 @@ class SlackEventWrapper {
         var re_match = re.exec(syntax_object[key].arg); // RegExp.exec returns array if match (null if not). First element is matched string, following elements are matched groupings.
 
         if (!re_match){ // if arg did not match syntax, add to error message
-          output.msg += '\n' + syntax_object[key].fail_msg_nomatch;
+          msg += '\n' + syntax_object[key].fail_msg_nomatch;
         } else { // or do some optional parsing if successful
           if (key === 'mention'){ // parse userid and username from user mention string
             this.args.mention.userid = re_match[1];
@@ -184,17 +151,11 @@ class SlackEventWrapper {
       }
     }, this); // make sure to pass this in forEach to maintain scope
 
-    // format output variable
-    if (output.msg !== ''){ // if any error was picked up, wrap
-      output.msg = 'I wasn\'t able to process your command for the following reasons:' + output.msg;
-    } else{
-      output.code = true;
+    if (msg !== ''){ // if any syntactic error was picked up, wrap and throw exception
+      msg = 'I wasn\'t able to process your command for the following reasons:' + msg;
+      throw new Error(msg);
     }
-
-    return output;
   }
-
-
 
   handleEvent (){
     // handle slack doPost events
@@ -202,7 +163,7 @@ class SlackEventWrapper {
     // match doPost event.subtype with the function it is meant to call
     var fctName = this.slackCmd2FctName();
     if (!fctName){ // this check is already done in parsing. added here in case corruption occurs during event queuing
-      return contentServerJsonReply('error: Sorry, the `' + this.subtype + '` command is not currently supported.');
+      throw new Error('error: Sorry, the `' + this.subtype + '` command is not currently supported.');
     }
 
     // Process Command
