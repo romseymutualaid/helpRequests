@@ -77,6 +77,29 @@ function globalVariables(){
       '/ib_c':'cancel',
       '/ib_d':'done_send_modal'
     },
+    
+    // A key-value object to associate slack command strings to the command subclass that should be instantiated
+    SUBCLASS_FROM_SLACKCMD: {
+      'done_modal':'done',
+      '/_volunteer':'volunteer',
+//      '/_volunteer2':'volunteer_debug',
+      '/_assign':'assign',
+      '/_cancel':'cancel',
+      '/_done':'done_send_modal',
+      '/_list':'list',
+      '/_listactive':'listactive',
+      '/_listall':'listall',
+      '/_listmine':'listmine',
+      '/_listallmine':'listallmine',
+      '/jb_l':'list',
+      '/jb_v':VolunteerCommand,
+      '/jb_c':'cancel',
+      '/jb_d':'done_send_modal',
+      '/jb_a':'assign',
+      '/ib_v':'volunteer',
+      '/ib_c':'cancel',
+      '/ib_d':'done_send_modal'
+    },
 
     // Functions that are to be processed async
     ASYNC_FUNCTIONS: [

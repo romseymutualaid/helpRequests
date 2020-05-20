@@ -1,6 +1,6 @@
 function doPost(e) { // catches slack POST requests
   try{
-    var slackEvent = new SlackEventBuilder(e);
+    var slackEvent = createSlackEventClassInstance(e);
     slackEvent.checkAuthenticity();
     slackEvent.checkSyntax();
     return slackEvent.handleEvent();
@@ -14,7 +14,7 @@ function doPost(e) { // catches slack POST requests
 
 function triggerOnFormSubmit (e){ // this is an installed trigger. see https://developers.google.com/apps-script/guides/triggers/installable
   // this function is called when manual form submission occurs. We use this trigger to detect incoming help requests, and when these already have a channel specified, are directly sent to the relevant slack channel.
-
+  
   // handle trigger depending on which form the submission originates from
   var eventForm = JSON.parse(PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
 

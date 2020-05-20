@@ -16,11 +16,7 @@ function cancel(args){
   var row = tracking_sheet.getRowByUniqueID(uniqueid);
 
   // check command validity
-  var cmd_check = checkCommandValidity('cancel',row,uniqueid,userid,channelid);
-  if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return cmd_check.msg;
-  }
-
+  var cmd_check_msg = checkCommandValidity('cancel',row,uniqueid,userid,channelid);
 
   // reply to slack thread to confirm volunteer sign-up (chat.postMessage method)
   var out_message = `<!channel> <@${row.slackVolunteerID}> is no longer available. Can anyone else volunteer? Type \`/volunteer ${uniqueid} \``;
@@ -39,9 +35,9 @@ function cancel(args){
     log_sheet.appendRow([new Date(), row.uniqueid, 'admin','confirmCancel', return_message]);
 
     // return error to user
-    return textToJsonBlocks(
+    throw new Error(textToJsonBlocks(
 `error: Due to a technical incident, I was unable to process your command.
-Can you please ask ${mention_requestCoord} to remove you manually?`);
+Can you please ask ${mention_requestCoord} to remove you manually?`));
   }
 
   // write userid, username and status to sheet
@@ -55,7 +51,7 @@ Can you please ask ${mention_requestCoord} to remove you manually?`);
   log_sheet.appendRow([new Date(), row.uniqueid, 'admin','confirmCancel', return_message]);
 
   // reply privately to user
-  return cmd_check.msg;
+  return cmd_check_msg;
 
 }
 

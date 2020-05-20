@@ -13,10 +13,7 @@ function volunteer (args){
   var log_sheet = new LogSheetWrapper();
 
   // check command validity
-  var cmd_check = checkCommandValidity('volunteer',row,uniqueid,userid,channelid);
-  if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return cmd_check.msg; // this return is problematic because it is a mix of block (success reply) and non-block values
-  }
+  var cmd_check_msg = checkCommandValidity('volunteer',row,uniqueid,userid,channelid);
 
   // reply to slack thread to confirm volunteer sign-up (chat.postMessage method)
   var out_message = `<@${userid}> has volunteered. :tada:`;
@@ -35,9 +32,9 @@ function volunteer (args){
     log_sheet.appendRow([new Date(), uniqueid,'admin','confirmVolunteer',return_message]);
 
     // return error to user
-    return textToJsonBlocks(
+    throw new Error(textToJsonBlocks(
 `error: Due to a technical incident, I was unable to process your command.
-Can you please ask ${mention_requestCoord} to sign you up manually?`);
+Can you please ask ${mention_requestCoord} to sign you up manually?`));
   }
 
   // write userid, username and status to sheet
@@ -51,7 +48,7 @@ Can you please ask ${mention_requestCoord} to sign you up manually?`);
   log_sheet.appendRow([new Date(), uniqueid, 'admin','confirmVolunteer', return_message]);
 
   // return private message to user
-  return cmd_check.msg; // success reply is already in blocks
+  return cmd_check_msg; // success reply is already in blocks
 }
 
 

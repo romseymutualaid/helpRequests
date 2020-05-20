@@ -159,7 +159,7 @@ your form submission to the request coordinator on-duty.`)
             "FailSend|ToClose\\?|Closed|Escalated|Signposted":{
               returnCode:false,
               returnMsg:textToJsonBlocks(
-`Sorry, ${request_formatted} is not available.
+                `Sorry, ${request_formatted} is not available.
 Its status is "${row.requestStatus}".
 Volunteer is <@${row.slackVolunteerID}>.
 Type \`/list\` to list all the available requests in this channel.
@@ -195,60 +195,59 @@ I've notified the channel.`)
     };
 
 
- // initialise output object
-  var output = {code:false, msg:''};
+  // initialise output object
+  var msg='';
 
 
   // check that uniqueid of the row and the requested uniqueid match
   if (row.uniqueid != uniqueid){
     if (row.uniqueid == ''){ // uniqueid points to empty row --> suggests wrong number was entered
-      output.msg = textToJsonBlocks(
+      msg = textToJsonBlocks(
 `error: I couldn't find the request number \`${uniqueid}\`. Did you type the right number?
 Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
 If the issue persists, please contact ${mention_mod}.`);
     } else { // uniqueid points to non-empty row but mismatch --> this is a spreadsheet issue. suggests rows are not sorted by uniqueid.
-      output.msg = textToJsonBlocks(
+      msg = textToJsonBlocks(
 `error: There is a problem in the spreadsheet on the server.
 You asked for request-number ${uniqueid}, but I could only find request-number ${row.uniqueid}.
 Please can you notify a developer and ask ${mention_mod} for assistance?`);
     }
-    return(output);
+        throw new Error(msg);
   }
 
   // check that request belongs to the channel from which command was sent
   if (channelid !== row.channelid) {
-    output.msg = textToJsonBlocks(
+    msg = textToJsonBlocks(
 `error: The request ${uniqueid} does not appear to belong to the channel you are writing from.
 Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
 If the issue persists, please contact ${mention_mod}.`);
-    return(output);
+  throw new Error(msg);
   }
 
   // check that user that sent the request has the right to proceed
   if (cmd==='volunteer'){
     if (row.slackVolunteerID!=='' && userid!==row.slackVolunteerID){ // volunteerid is not blank and user that sent command does not match volunteerID
-      output.msg = textToJsonBlocks(
+      msg = textToJsonBlocks(
 `error: Your command failed because ${request_formatted} is taken by someone else (<@${row.slackVolunteerID}>).
 Type \`/list\` to list all the available requests in this channel.
 If you think there is a mistake, please contact ${mention_mod}.`);
-      return(output);
+      throw new Error(msg);
     }
   } else if (cmd==='cancel' || cmd==='done'){
     if (row.slackVolunteerID === '') { // no one is assigned
-      output.msg = textToJsonBlocks(
+      msg = textToJsonBlocks(
 `error: Your command failed because ${request_formatted} is yet to be assigned.
 Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
 If you think there is a mistake, please contact ${mention_mod}.`);
-      return(output);
+      throw new Error(msg);
     } else if (row.slackVolunteerID !== '' && userid!==row.slackVolunteerID && userid!==mod_userid) { // someone else than userid is assigned, and userid is not moderator
-      output.msg = textToJsonBlocks(
+      msg = textToJsonBlocks(
 `error: Your command failed because ${request_formatted} is taken by someone else (<@${row.slackVolunteerID}>).
 Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
 If you think there is a mistake, please contact ${mention_mod}.`);
-      return(output);
+  throw new Error(msg);
     }
   }
-
 
   // check command is compatible with request status
   var statusBranchVal;
@@ -260,16 +259,19 @@ If you think there is a mistake, please contact ${mention_mod}.`);
     }
   });
   if (!statusBranchVal){ // if no branch match was found
-    output.msg = textToJsonBlocks(
+    msg = textToJsonBlocks(
 `error: There is a problem in the spreadsheet on the server.
 I couldn't recognise the current status value "${row.requestStatus}" of request ${uniqueid}.
 Please can you notify a developer and ask ${mention_mod} for assistance?`);
+    throw new Error(msg);
   } else{
-    output.msg = cmd_state_machine.command[cmd].status[statusBranchVal].returnMsg;
-    output.code = cmd_state_machine.command[cmd].status[statusBranchVal].returnCode;
+    msg = cmd_state_machine.command[cmd].status[statusBranchVal].returnMsg;
+    if (!cmd_state_machine.command[cmd].status[statusBranchVal].returnCode){
+      throw new Error(msg);
+    }
   }
 
-  return output;
+      return msg;
 }
 
 

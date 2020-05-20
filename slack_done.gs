@@ -124,10 +124,7 @@ function done(args){
   var row = tracking_sheet.getRowByUniqueID(uniqueid);
 
   // check command validity
-  var cmd_check = checkCommandValidity('done',row,uniqueid,userid,channelid);
-  if (!cmd_check.code){ // if command check returns error status, halt function and return error message to user
-    return cmd_check.msg;
-  }
+  var cmd_check_msg = checkCommandValidity('done',row,uniqueid,userid,channelid);
 
   // reply to slack thread to confirm done instance (chat.postMessage method)
   var out_message = 'Thanks for helping out <@' + row.slackVolunteerID + '>! :nerd_face:';
@@ -147,9 +144,9 @@ function done(args){
     log_sheet.appendRow([new Date(), uniqueid,'admin','confirmDone',return_message]);
 
     // return error to user
-    return textToJsonBlocks(
+    throw new Error(textToJsonBlocks(
       `error: Due to a technical incident, I was unable to process your command.
-      Can you please ask ${mention_requestCoord} to close the request manually?`);
+      Can you please ask ${mention_requestCoord} to close the request manually?`));
   }
 
   // update log sheet
@@ -172,5 +169,5 @@ function done(args){
   }
 
   // return private message to user
-  return cmd_check.msg;
+  return cmd_check_msg;
 }

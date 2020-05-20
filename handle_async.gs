@@ -9,58 +9,61 @@
  * @param {*} functionName
  * @param {*} args
  */
-function processFunctionSync(functionName, args){
-  var message = GlobalFuncHandle[functionName](args);
+function processFunctionSync(functionName, args){ // expected changes with full class implementation: pass commandName (SlackEventWrapper.subtype) instead of functionName
+  
+  if (functionName==='volunteer'){ // new flow with command classes
+    var commandWrapper = createCommandClassInstance('/jb_v', args);
+    commandWrapper.getSheetData();
+    var message = commandWrapper.formulateUserResponse();
+    commandWrapper.updateSheet();
+    commandWrapper.sendChannelResponse();
+  } else { // old flow with command functions
+    var message = GlobalFuncHandle[functionName](args);
+  }
+  
   return message;
 }
 
 
 /**
- * Async run functionName, and post the results to reply_url, while immediately
- * returning immediateReturnMessage.
+ * Async run functionName
  * @param {*} functionName
  * @param {*} args
- * @param {*} reply_url
- * @param {*} immediateReturnMessage
  */
-function processFunctionAsync(functionName, args, reply_url, immediateReturnMessage){
+function processFunctionAsync(functionName, args){
   // Queue an async reply with the asyncMethod defined in globalVariables (i.e. either a time-based or form-based trigger)
   var asyncMethod = globalVariables().ASYNC_METHOD;
-  GlobalFuncHandle[asyncMethod](functionName, args, reply_url);
-  
-  // Return immediate response to user
-  return immediateReturnMessage;
+  GlobalFuncHandle[asyncMethod](functionName, args);
 }
 
 /**
- * Run functionName, and post the results to reply_url. Log the results to the
+ * Run functionName, and post the results to args.response_url. Log the results to the
  * log sheet.
  * @param {*} functionName
  * @param {*} args
- * @param {*} reply_url
  */
-function processAndPostResults(functionName, args, reply_url){
-  var message = processFunctionSync(functionName, args);
-  var return_message = postToSlack(message, reply_url);
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow(
-    [new Date(), args.uniqueid, "admin",'postReply', return_message]);
+function processAndPostResults(functionName, args){
+  try{
+    var message = processFunctionSync(functionName, args);
+    slackUserReply (message, args.uniqueid, args.response_url);
+  }
+  catch(errObj){
+    slackUserReply (errObj.message, args.uniqueid, args.response_url);
+  }
 }
-
 
 /**
  * Set up a trigger to run processFunctionAndPostResultsTriggered
  * @param {*} functionName
  * @param {*} args
- * @param {*} reply_url
  */
-function processFunctionAsyncWithTrigger(functionName, args, reply_url) {
+function processFunctionAsyncWithTrigger(functionName, args) {
   var trigger = ScriptApp.newTrigger("processFunctionAndPostResultsTriggered")
     .timeBased()
     .after(100)
     .create();
 
-  setupTriggerArguments(trigger, [functionName, args, reply_url], false);
+  setupTriggerArguments(trigger, [functionName, args], false);
 }
 
 
@@ -69,8 +72,8 @@ function processFunctionAsyncWithTrigger(functionName, args, reply_url) {
  * @param {*} event
  */
 function processFunctionAndPostResultsTriggered(event){
-  var [functionName, args, reply_url] = handleTriggered(event.triggerUid);
-  processAndPostResults(functionName, args, reply_url);
+  var [functionName, args] = handleTriggered(event.triggerUid);
+  processAndPostResults(functionName, args);
 }
 
 

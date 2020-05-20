@@ -130,3 +130,27 @@ var postToSlack = function(payload, url, as_user=false){
         .fetch(url, options)
         .getContentText();
 }
+
+
+
+var slackUserReply = function(payload, uniqueid, response_url){
+  var return_message = postToSlack(payload, response_url);
+  var log_sheet = new LogSheetWrapper();
+  log_sheet.appendRow([new Date(), uniqueid, 'admin','messageUser', return_message]);
+}
+
+var slackChannelReply = function(payload, uniqueid){
+  var globvar = globalVariables();
+  var mention_requestCoord = globvar['MENTION_REQUESTCOORD'];
+  var webhook_chatPostMessage = globvar['WEBHOOK_CHATPOSTMESSAGE'];
+  
+  var return_message = postToSlack(payload, webhook_chatPostMessage);
+  var log_sheet = new LogSheetWrapper();
+  log_sheet.appendRow([new Date(), uniqueid,'admin','messageChannel',return_message]);
+  
+  if (JSON.parse(return_message).ok !== true){ // message was not successfully posted to channel
+    throw new Error(textToJsonBlocks(
+      `error: I have processed your request, but I was unable to notify the slack channel.
+      Can you please do so yourself, or ask ${mention_requestCoord} to?`));
+  }
+}

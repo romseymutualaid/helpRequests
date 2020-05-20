@@ -1,17 +1,18 @@
-class SlackEventBuilder {
-  constructor(e){
-    // extract event message body
-    var par = e.parameter;
-    
-    // build the appropriate object depending on event type
-    var payload = par.payload;
-    if (payload){ // if payload exists, this is a slack interactive component event
-      return new SlackInteractiveMessageEvent(JSON.parse(payload));
-    } else{ // else, this is a slack slash command event
-      return new SlackSlashCommandEvent(par);
-    }
+/**
+ *  Return the appropriate SlackEvent subclass instance based on the specified event object e.
+ * @param {*} e
+ */
+var createSlackEventClassInstance = function(e) {
+  // extract event message body
+  var par = e.parameter;
+  
+  // build the appropriate object depending on event type
+  var payload = par.payload;
+  if (payload){ // this is a slack interactive component event
+    return new SlackInteractiveMessageEvent(JSON.parse(payload));
+  } else{ // this is a slack slash command event
+    return new SlackSlashCommandEvent(par);
   }
-
 }
 
 class SlackEventWrapper {
@@ -174,16 +175,14 @@ class SlackEventWrapper {
       } else{
       var immediateReturnMessage = "Thank you for your message. I\'m a poor bot so please be patient... it should take me up to a few minutes to get back to you...";
       }
-      var reply_url = this.args.response_url;
-      var return_message = processFunctionAsync(
-        fctName, this.args, reply_url, immediateReturnMessage);
+      processFunctionAsync(fctName, this.args); // todo: fully migrate to class instantiation and pass this.subtype instead of fctName
 
     } else {
       // Handle Sync
-      var return_message = processFunctionSync(fctName, this.args);
-
+      var immediateReturnMessage = processFunctionSync(fctName, this.args); // todo: fully migrate to class instantiation and pass this.subtype instead of fctName
     }
-    return contentServerJsonReply(return_message);
+    
+    return contentServerJsonReply(immediateReturnMessage);
   }
 }
 

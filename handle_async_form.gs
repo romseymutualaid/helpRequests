@@ -1,4 +1,4 @@
-function processAsyncWithFormTrigger(functionName, args, reply_url) {
+function processAsyncWithFormTrigger(functionName, args) {
   // Submit request to event form, to allow a delayed response
   
   // construct post request
@@ -22,9 +22,8 @@ function handleEventFormSubmission(values){
   // extract functionName, args and response_url
   var [timestamp, functionName, args_str] = values;
   var args = JSON.parse(args_str);
-  var reply_url = args.response_url;
   
   // call processAndPostResults
-  processAndPostResults(functionName, args, reply_url);
+  processAndPostResults(functionName, args);
 }
 
