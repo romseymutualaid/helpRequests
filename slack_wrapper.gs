@@ -65,7 +65,7 @@ class SlackEventWrapper {
     // check this.type
     var accepted_types = ['view_submission', 'command'];
     if(accepted_types.indexOf(this.type) < 0){ // if this.type does not match any accepted_types, return error
-       throw new Error('error: I can\'t handle the event type "'+this.type+'".');
+      throw new Error(`error: I can't handle the event type ${this.type}.`);
     }
 
     // match doPost this.subtype with the class it is meant to instantiate
@@ -74,9 +74,9 @@ class SlackEventWrapper {
       throw new Error(`error: The \`${this.subtype}\` command is not currently supported.`);
     }
     if (typeof SUBCLASS_FROM_SLACKCMD[this.subtype] !== 'function'){
-    throw new Error(`error: The \`${this.subtype}\` command is not properly connected on the server.
+      throw new Error(`error: The \`${this.subtype}\` command is not properly connected on the server.
                     Can you please notify a developer?`);
-  }
+    }
 
     // check argument syntax for fctName. 
     // todo: move this into Command subclasses? or at the least change dependency from fctName to subclassName
@@ -87,6 +87,7 @@ class SlackEventWrapper {
     this.checkArgSyntaxRegexp(fctName);
   }
 
+    //// todo: argSyntaxRegexp methods are Arg Class methods (one per arg to check). Each ConcreteCommand has an Arg object and calls relevant arg.methods().
   checkArgSyntaxRegexp(fctname){
     // checkArgSyntaxRegexp: check that a particular function fctname has all the correct args by regexp matching
 
