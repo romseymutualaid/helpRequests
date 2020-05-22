@@ -21,29 +21,13 @@ function stripStartingNumbers(s){
 }
 
 
-//function getRowByColVal(sheetvalues, colindex, value){
-//    var row;
-//    for (var i = 0; i < sheetvalues.length ; i++)
-//    {
-//      if (sheetvalues[i][colindex-1] == value)
-//      {
-//        row = i;
-//        break;
-//      }
-//    }
-//    return row;
-//}
-
-
-
 //****************************************
 // slack command functions
 //****************************************
 
-function requestFormatted(slackURL, uniqueid, requesterName, requesterAddr){
-  return `<${slackURL}|request ${uniqueid}> (${requesterName}, ${requesterAddr})`;
+function requestFormatted(row){
+  return `<${row.slackURL}|request ${row.uniqueid}> (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
 }
-
 
 /**
  * Check command validity. Always returns an object of the form:
@@ -98,8 +82,7 @@ function checkCommandValidity (cmd, row, uniqueid, userid, channelid){
   var mod_userid = globvar['MOD_USERID'];
   var mention_mod = '<@'+mod_userid+'>';
 
-  var request_formatted = requestFormatted(
-    row.slackURL, uniqueid, row.requesterName, row.requesterAddr);
+  var request_formatted = requestFormatted(row);
 
   var cmd_state_machine={ // this is the finite state machine object, which contains the return messages and codes for every possible {command,status} combination
       command:{

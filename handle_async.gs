@@ -5,22 +5,19 @@
 // required to contain
 
 /**
- *  Run a functionName with args, and reply immediately
+ *  Process command cmdName with args, and return a user response message
  * @param {*} functionName
  * @param {*} args
  */
-function processFunctionSync(functionName, args){ // expected changes with full class implementation: pass commandName (SlackEventWrapper.subtype) instead of functionName
+function processFunctionSync(cmdName, args){
   
-  if (functionName==='volunteer'){ // new flow with command classes
-    var commandWrapper = createCommandClassInstance('/jb_v', args);
-    commandWrapper.getSheetData();
-    var message = commandWrapper.formulateUserResponse();
-    commandWrapper.updateSheet();
-    commandWrapper.sendChannelResponse();
-  } else { // old flow with command functions
-    var message = GlobalFuncHandle[functionName](args);
-  }
-  
+  var commandWrapper = createCommandClassInstance(cmdName, args);
+  commandWrapper.getSheetData();
+  var message = commandWrapper.formulateUserResponse();
+  commandWrapper.updateSheet();
+  commandWrapper.sendSlackPayloads();
+  commandWrapper.nextCommand();
+    
   return message;
 }
 
@@ -30,10 +27,10 @@ function processFunctionSync(functionName, args){ // expected changes with full 
  * @param {*} functionName
  * @param {*} args
  */
-function processFunctionAsync(functionName, args){
+function processFunctionAsync(cmdName, args){
   // Queue an async reply with the asyncMethod defined in globalVariables (i.e. either a time-based or form-based trigger)
   var asyncMethod = globalVariables().ASYNC_METHOD;
-  GlobalFuncHandle[asyncMethod](functionName, args);
+  GlobalFuncHandle[asyncMethod](cmdName, args);
 }
 
 /**
@@ -42,9 +39,9 @@ function processFunctionAsync(functionName, args){
  * @param {*} functionName
  * @param {*} args
  */
-function processAndPostResults(functionName, args){
+function processAndPostResults(cmdName, args){
   try{
-    var message = processFunctionSync(functionName, args);
+    var message = processFunctionSync(cmdName, args);
     slackUserReply (message, args.uniqueid, args.response_url);
   }
   catch(errObj){
@@ -57,13 +54,13 @@ function processAndPostResults(functionName, args){
  * @param {*} functionName
  * @param {*} args
  */
-function processFunctionAsyncWithTrigger(functionName, args) {
+function processFunctionAsyncWithTrigger(cmdName, args) {
   var trigger = ScriptApp.newTrigger("processFunctionAndPostResultsTriggered")
     .timeBased()
     .after(100)
     .create();
 
-  setupTriggerArguments(trigger, [functionName, args], false);
+  setupTriggerArguments(trigger, [cmdName, args], false);
 }
 
 
@@ -72,8 +69,8 @@ function processFunctionAsyncWithTrigger(functionName, args) {
  * @param {*} event
  */
 function processFunctionAndPostResultsTriggered(event){
-  var [functionName, args] = handleTriggered(event.triggerUid);
-  processAndPostResults(functionName, args);
+  var [cmdName, args] = handleTriggered(event.triggerUid);
+  processAndPostResults(cmdName, args);
 }
 
 

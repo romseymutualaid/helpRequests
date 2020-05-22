@@ -55,6 +55,7 @@ function globalVariables(){
       "completionLastTimestamp",
       "completionLastDetails"],
 
+    // [OBSOLETE, kept temporarily for backwards compatibility with SlackWrapper.checkArgSyntaxRegexp()]. todo: remove soon...
     // A key-value object to associate slack command strings to the internal function name they should call
     SLACKCMD_TO_FUNCTIONNAME: {
       'done_modal':'done',
@@ -69,6 +70,10 @@ function globalVariables(){
       '/_listmine':'listmine',
       '/_listallmine':'listallmine',
       '/jb_l':'list',
+      '/jb_lac':'list',
+      '/jb_la':'list',
+      '/jb_lm':'list',
+      '/jb_lam':'list',
       '/jb_v':'volunteer',
       '/jb_c':'cancel',
       '/jb_d':'done_send_modal',
@@ -80,39 +85,45 @@ function globalVariables(){
     
     // A key-value object to associate slack command strings to the command subclass that should be instantiated
     SUBCLASS_FROM_SLACKCMD: {
-      'done_modal':'done',
-      '/_volunteer':'volunteer',
-//      '/_volunteer2':'volunteer_debug',
-      '/_assign':'assign',
-      '/_cancel':'cancel',
-      '/_done':'done_send_modal',
-      '/_list':'list',
-      '/_listactive':'listactive',
-      '/_listall':'listall',
-      '/_listmine':'listmine',
-      '/_listallmine':'listallmine',
-      '/jb_l':'list',
+      'done_modal':DoneCommand,
+      '/volunteer':VolunteerCommand,
+      '/assign':AssignCommand,
+      '/cancel':CancelCommand,
+      '/done':DoneSendModalCommand,
+      '/list':ListCommand,
+      '/listactive':ListActiveCommand,
+      '/listall':ListAllCommand,
+      '/listmine':ListMineCommand,
+      '/listallmine':ListAllMineCommand,
+      '/_volunteer':VolunteerCommand,
+      '/_assign':AssignCommand,
+      '/_cancel':CancelCommand,
+      '/_done':DoneSendModalCommand,
+      '/_list':ListCommand,
+      '/_listactive':ListActiveCommand,
+      '/_listall':ListAllCommand,
+      '/_listmine':ListMineCommand,
+      '/_listallmine':ListAllMineCommand,
+      '/jb_l':ListCommand,
+      '/jb_lac':ListActiveCommand,
+      '/jb_la':ListAllCommand,
+      '/jb_lm':ListMineCommand,
+      '/jb_lam':ListAllMineCommand,
       '/jb_v':VolunteerCommand,
-      '/jb_c':'cancel',
-      '/jb_d':'done_send_modal',
-      '/jb_a':'assign',
-      '/ib_v':'volunteer',
-      '/ib_c':'cancel',
-      '/ib_d':'done_send_modal'
+      '/jb_c':CancelCommand,
+      '/jb_d':DoneSendModalCommand,
+      '/jb_a':AssignCommand,
+      '/ib_v':VolunteerCommand,
+      '/ib_c':CancelCommand,
+      '/ib_d':DoneSendModalCommand
     },
-
-    // Functions that are to be processed async
-    ASYNC_FUNCTIONS: [
-      'volunteer',
-      'assign',
-      'cancel',
-      'list',
-      'list_active',
-      'listall',
-      'listmine',
-      'listallmine',
-      //'done_send_modal',
-      'done'
+    
+    // Commands that are to be processed async
+    SYNC_COMMANDS: [
+      '/jb_d',
+      '/ib_d',
+      '/_done',
+      '/done'
     ],
     
       // Which method should be used for delayed reponses?

@@ -1,4 +1,4 @@
-function processAsyncWithFormTrigger(functionName, args) {
+function processAsyncWithFormTrigger(cmdName, args) {
   // Submit request to event form, to allow a delayed response
   
   // construct post request
@@ -6,7 +6,7 @@ function processAsyncWithFormTrigger(functionName, args) {
   var options = {
     method:'post',
     payload:{
-      [eventForm.entry_id.fctName]:functionName,
+      [eventForm.entry_id.fctName]:cmdName,
       [eventForm.entry_id.args]:JSON.stringify(args)
     }
   };
@@ -20,10 +20,10 @@ function handleEventFormSubmission(values){
   // handle the submissions that originate specifically from the eventForm
   
   // extract functionName, args and response_url
-  var [timestamp, functionName, args_str] = values;
+  var [timestamp, cmdName, args_str] = values;
   var args = JSON.parse(args_str);
   
   // call processAndPostResults
-  processAndPostResults(functionName, args);
+  processAndPostResults(cmdName, args);
 }
 

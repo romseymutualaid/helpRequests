@@ -68,28 +68,23 @@ class SlackEventWrapper {
        throw new Error('error: I can\'t handle the event type "'+this.type+'".');
     }
 
-    // match doPost this.subtype with the function it is meant to call
-    var fctName = this.slackCmd2FctName();
-    if (!fctName){
-       throw new Error('error: Sorry, the `' + this.subtype + '` command is not currently supported.');
+    // match doPost this.subtype with the class it is meant to instantiate
+    var SUBCLASS_FROM_SLACKCMD = globalVariables().SUBCLASS_FROM_SLACKCMD;
+    if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(this.subtype)){ // if no key is found for this.subtype, return error
+      throw new Error(`error: The \`${this.subtype}\` command is not currently supported.`);
     }
-
-    // check that function associated to this.subtype exists in global scope
-    if (!GlobalFuncHandle[fctName]){
-      throw new Error('error: Sorry, the `' + this.subtype + '` command is not properly connected on the server. Please contact the web app developer.');
-    }
-
-    // check argument syntax for fctName
-    this.checkArgSyntaxRegexp(fctName);
+    if (typeof SUBCLASS_FROM_SLACKCMD[this.subtype] !== 'function'){
+    throw new Error(`error: The \`${this.subtype}\` command is not properly connected on the server.
+                    Can you please notify a developer?`);
   }
-  
-  slackCmd2FctName(){
-    // match this.subtype with the function it is meant to call
-    var slackCmd2FctName = globalVariables()['SLACKCMD_TO_FUNCTIONNAME']; // this is where all the key-value pairs (event.subtype - functionName) are stored
-    if (!slackCmd2FctName.hasOwnProperty(this.subtype)){ // if no key is found for this.subtype, return error
-        return false;
+
+    // check argument syntax for fctName. 
+    // todo: move this into Command subclasses? or at the least change dependency from fctName to subclassName
+    var fctName = globalVariables().SLACKCMD_TO_FUNCTIONNAME[this.subtype];
+    if (!fctName){ // this check is already done in parsing. added here in case corruption occurs during event queuing
+      throw new Error('error: Sorry, the `' + this.subtype + '` command is not currently supported.');
     }
-    return slackCmd2FctName[this.subtype];
+    this.checkArgSyntaxRegexp(fctName);
   }
 
   checkArgSyntaxRegexp(fctname){
@@ -159,27 +154,20 @@ class SlackEventWrapper {
   }
 
   handleEvent (){
-    // handle slack doPost events
-
-    // match doPost event.subtype with the function it is meant to call
-    var fctName = this.slackCmd2FctName();
-    if (!fctName){ // this check is already done in parsing. added here in case corruption occurs during event queuing
-      throw new Error('error: Sorry, the `' + this.subtype + '` command is not currently supported.');
-    }
+    // handle slack doPost event
 
     // Process Command
-    if (globalVariables()["ASYNC_FUNCTIONS"].indexOf(fctName) != -1){
-      // Handle Asyc
+    if (globalVariables()["SYNC_COMMANDS"].indexOf(this.subtype) != -1){
+      // Handle Sync
+      var immediateReturnMessage = processFunctionSync(this.subtype, this.args);
+    } else {
+      // Handle Async
       if(this.subtype==='done_modal'){
         var immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
       } else{
       var immediateReturnMessage = "Thank you for your message. I\'m a poor bot so please be patient... it should take me up to a few minutes to get back to you...";
       }
-      processFunctionAsync(fctName, this.args); // todo: fully migrate to class instantiation and pass this.subtype instead of fctName
-
-    } else {
-      // Handle Sync
-      var immediateReturnMessage = processFunctionSync(fctName, this.args); // todo: fully migrate to class instantiation and pass this.subtype instead of fctName
+      processFunctionAsync(this.subtype, this.args);
     }
     
     return contentServerJsonReply(immediateReturnMessage);
