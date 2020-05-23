@@ -13,6 +13,24 @@ function getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROW
 }
 
 
+//****************************************
+// string functions
+//****************************************
+
+
+var regexpMatch = function(str, regexp, msg_empty_str, msg_nomatch_str){
+  if (!str || str == ''){
+    throw new Error(msg_empty_str);
+  }
+    
+  var re_match = new RegExp(regexp).exec(str); // RegExp.exec returns array if match (null if not). First element is matched string, following elements are matched groupings.
+  if (!re_match){
+    throw new Error(msg_nomatch_str);
+  }
+  
+  return re_match;
+}
+
 function stripStartingNumbers(s){
   // Strip starting numbers from a string.
   // Use to remove house numbers when posting publically.

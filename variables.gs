@@ -54,34 +54,6 @@ function globalVariables(){
       "completionCount",
       "completionLastTimestamp",
       "completionLastDetails"],
-
-    // [OBSOLETE, kept temporarily for backwards compatibility with SlackWrapper.checkArgSyntaxRegexp()]. todo: remove soon...
-    // A key-value object to associate slack command strings to the internal function name they should call
-    SLACKCMD_TO_FUNCTIONNAME: {
-      'done_modal':'done',
-      '/_volunteer':'volunteer',
-//      '/_volunteer2':'volunteer_debug',
-      '/_assign':'assign',
-      '/_cancel':'cancel',
-      '/_done':'done_send_modal',
-      '/_list':'list',
-      '/_listactive':'listactive',
-      '/_listall':'listall',
-      '/_listmine':'listmine',
-      '/_listallmine':'listallmine',
-      '/jb_l':'list',
-      '/jb_lac':'list',
-      '/jb_la':'list',
-      '/jb_lm':'list',
-      '/jb_lam':'list',
-      '/jb_v':'volunteer',
-      '/jb_c':'cancel',
-      '/jb_d':'done_send_modal',
-      '/jb_a':'assign',
-      '/ib_v':'volunteer',
-      '/ib_c':'cancel',
-      '/ib_d':'done_send_modal'
-    },
     
     // A key-value object to associate slack command strings to the command subclass that should be instantiated
     SUBCLASS_FROM_SLACKCMD: {

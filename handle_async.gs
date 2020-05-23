@@ -5,24 +5,6 @@
 // required to contain
 
 /**
- *  Process command cmdName with args, and return a user response message
- * @param {*} functionName
- * @param {*} args
- */
-function processFunctionSync(cmdName, args){
-  
-  var commandWrapper = createCommandClassInstance(cmdName, args);
-  commandWrapper.getSheetData();
-  var message = commandWrapper.formulateUserResponse();
-  commandWrapper.updateSheet();
-  commandWrapper.sendSlackPayloads();
-  commandWrapper.nextCommand();
-    
-  return message;
-}
-
-
-/**
  * Async run functionName
  * @param {*} functionName
  * @param {*} args
@@ -34,17 +16,55 @@ function processFunctionAsync(cmdName, args){
 }
 
 /**
- * Run functionName, and post the results to args.response_url. Log the results to the
+ * Submit request to event form, to allow a delayed response
+ * @param {*} cmdName
+ * @param {*} args
+ */
+function processAsyncWithFormTrigger(cmdName, args) {
+  // construct post request
+  var eventForm = JSON.parse(PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
+  var options = {
+    method:'post',
+    payload:{
+      [eventForm.entry_id.fctName]:cmdName,
+      [eventForm.entry_id.args]:JSON.stringify(args)
+    }
+  };
+  
+  // Post request submission to form. The return value of .getContextText() does not appear to be informative of success of submission.
+  UrlFetchApp.fetch(eventForm.url, options).getContentText(); 
+}
+
+/**
+ * Handle the submissions that originate specifically from the eventForm
+ * @param {*} values
+ */
+function handleEventFormSubmission(values){
+  // extract functionName, args and response_url
+  var [timestamp, cmdName, args_str] = values;
+  var args = JSON.parse(args_str);
+  
+  // call processAndPostResults
+  processAndPostResults(cmdName, args);
+}
+
+/**
+ * Instantiate and execute ConcreteCommand based on cmdName+args, and post the results to args.response_url. Log the results to the
  * log sheet.
- * @param {*} functionName
+ * @param {*} cmdName
  * @param {*} args
  */
 function processAndPostResults(cmdName, args){
   try{
-    var message = processFunctionSync(cmdName, args);
+    var commandWrapper = createCommandClassInstance(cmdName, args);
+    var message = commandWrapper.execute(); 
     slackUserReply (message, args.uniqueid, args.response_url);
   }
   catch(errObj){
+    if (errObj instanceof TypeError || errObj instanceof ReferenceError){
+      // if a code error, throw the full error log
+      throw errObj;
+    }
     slackUserReply (errObj.message, args.uniqueid, args.response_url);
   }
 }

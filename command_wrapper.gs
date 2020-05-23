@@ -4,7 +4,20 @@
  * @param {*} args
  */
 var createCommandClassInstance = function(slackCmdString, args){
+  
   var SUBCLASS_FROM_SLACKCMD = globalVariables().SUBCLASS_FROM_SLACKCMD;
+  
+  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(slackCmdString)){ // if no key is found for slackCmdString, return error
+    throw new Error(`error: The \`${slackCmdString}\` command is not currently supported.`);
+  }
+  if (typeof SUBCLASS_FROM_SLACKCMD[slackCmdString] !== 'function'){
+    throw new Error(`error: The \`${slackCmdString}\` command is not properly connected on the server.
+                    Can you please notify a developer?`);
+  }
+  if (typeof args !== 'object' || args === null){
+    throw new Error(`error: I couldn't process the arguments provided. Can you please notify a developer?`);
+  }
+  
   return new SUBCLASS_FROM_SLACKCMD[slackCmdString](args);
 }
 
@@ -15,11 +28,44 @@ class CommandArgs {
     this.channelid = args.channelid;
     this.userid = args.userid;
     this.username = args.username;
-    this.mention = args.mention;
+    this.mention = args.mention; // object with expected property "str"
     this.more = args.more;
     
     this.response_url = args.response_url;
     this.trigger_id = args.trigger_id;
+    
+    this.mod_userid = globalVariables()['MOD_USERID'];
+    this.mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  }
+  
+  parseUniqueID(){
+    var regexpToMatch = "^[0-9]{4}$";
+    var msg_empty_str = `error: You must provide the request number present in the help request message (example: \`/volunteer 9999\`).
+    You appear to have not typed any number. If the issue persists, contact ${this.mention_mod}.`;
+    var msg_nomatch_str = `error: The request number \`${this.uniqueid}\` does not appear to be a 4-digit number as expected.
+    Please specify a correct request number (example: \`/volunteer 9999\`). If the issue persists, contact ${this.mention_mod}.`;
+    
+    regexpMatch(this.uniqueid, regexpToMatch, msg_empty_str, msg_nomatch_str);
+  }
+  
+  parseMentionString(){
+    var regexpToMatch = "<@(U[A-Z0-9]+)\\|?(.*)>";
+    var msg_empty_str = `error: You must mention a user that the command applies to (example: \`/assign 9999 ${this.mention_mod}\`).
+    You appear to have not mentioned anyone. If the issue persists, contact ${this.mention_mod}.`;
+    var msg_nomatch_str = `error: I did not recognise the user \`${this.mention.str}\` you specified. 
+    Please specify the user by their mention name (example: \`/assign 9999 ${this.mention_mod}\`). If the issue persists, contact ${this.mention_mod}.`;
+    
+    var re_match = regexpMatch(this.mention.str, regexpToMatch, msg_empty_str, msg_nomatch_str);
+    
+    this.mention.userid = re_match[1];
+    this.mention.username = re_match[2];
+  }
+  
+  matchUserID(str_to_match){
+    if(this.userid!=str_to_match){
+      return false;
+    }
+    return true;
   }
 }
 
@@ -30,11 +76,10 @@ class CommandArgs {
 class Command {
   constructor(args){
     this.args = new CommandArgs(args);
-    this.tracking_sheet = new TrackingSheetWrapper();
-    this.log_sheet = new LogSheetWrapper();
+    this.immediateReturnMessage = "Thank you for your message. I\'m a poor bot so please be patient... it should take me up to a few minutes to get back to you...";
   }
   
-  checkSyntax(){}
+  parse(){}
   getSheetData(){}
   updateSheet(){}
   formulateUserResponse(){}
@@ -44,6 +89,26 @@ class Command {
     // However, some {command,arg} combinations lead to chained commands 
     // example: {DoneCommand,this.requestNextStatus='keepOpenNew'}' triggers CancelCommand.
   }
+  
+  execute(){
+    this.tracking_sheet = new TrackingSheetWrapper();
+    this.log_sheet = new LogSheetWrapper(); //do not instantiate these in constructor because they take ~300ms and would compromise immediate response
+    this.getSheetData();
+    var message = this.formulateUserResponse();
+    this.updateSheet();
+    this.sendSlackPayloads();
+    this.nextCommand();
+    return message;
+  }
+  
+  execute_superUser(){
+    this.tracking_sheet = new TrackingSheetWrapper();
+    this.log_sheet = new LogSheetWrapper();
+    this.getSheetData();
+    this.updateSheet();
+    this.sendSlackPayloads();
+    this.nextCommand();
+  }
 }
 
 
@@ -51,24 +116,25 @@ class Command {
  *  Manage an assignment command from moderator
  */
 class AssignCommand extends Command {
-  constructor(args){
-    super(args);
-    
+  
+  parse(){
     // check userid is a moderator
     var mod_userid = globalVariables()['MOD_USERID'];
-    if(this.args.userid!=mod_userid){
+    if(!this.args.matchUserID(mod_userid)){
       throw new Error(textToJsonBlocks(`error: The \`assign\` command can only be used by <@${mod_userid}>.`));
     }
-
-    this.args.userid = this.args.mention.userid;
-    this.args.username = this.args.mention.username;
+    
+    this.args.parseUniqueID();
+    this.args.parseMentionString();
   }
   
   formulateUserResponse(){
     return textToJsonBlocks(`Assigning volunteer on behalf...`);
   }
   
-  nextCommand(){    
+  nextCommand(){  
+    this.args.userid = this.args.mention.userid;
+    this.args.username = this.args.mention.username;
     processFunctionAsync('/volunteer', this.args); // todo: clean up string call
   }
 }
@@ -79,8 +145,8 @@ class AssignCommand extends Command {
  */
 class VolunteerCommand extends Command {
   
-  checkSyntax(){
-    //move slack_wrapper method here?
+  parse(){
+    this.args.parseUniqueID();
   }
   
   getSheetData(){
@@ -118,8 +184,8 @@ class VolunteerCommand extends Command {
  */
 class CancelCommand extends Command {
   
-  checkSyntax(){
-    //move slack_wrapper method here?
+  parse(){
+    this.args.parseUniqueID();
   }
   
   getSheetData(){
@@ -157,6 +223,10 @@ class CancelCommand extends Command {
  */
 class DoneSendModalCommand extends Command {
   
+  parse(){
+    this.args.parseUniqueID();
+  }
+  
   formulateUserResponse(){
     return textToJsonBlocks(`A request completion form will open in less than 3 seconds... If not, please type \`/done ${this.args.uniqueid}\` again.`);
   }
@@ -183,6 +253,8 @@ class DoneCommand extends Command {
   constructor(args){
     super(args);
     
+    this.immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
+    
     // done modal responses
     var modalResponseVals = args.more;
     this.requestNextStatus = modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value;
@@ -192,8 +264,8 @@ class DoneCommand extends Command {
     }
   }
   
-  checkSyntax(){
-    //move slack_wrapper method here?
+  parse(){
+    this.args.parseUniqueID();
   }
   
   getSheetData(){
@@ -209,7 +281,7 @@ class DoneCommand extends Command {
     this.row.completionCount = +this.row.completionCount +1;
     this.row.completionLastDetails = this.completionLastDetails;
     this.row.completionLastTimestamp = new Date();
-    tracking_sheet.writeRow(this.row);
+    this.tracking_sheet.writeRow(this.row);
     this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid,'slackCommand','done', this.completionLastDetails]);
   }
   

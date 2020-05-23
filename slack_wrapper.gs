@@ -27,7 +27,7 @@ class SlackEventWrapper {
     this.type=null; // describes the high level type of event (slash command, interactive message, ...)
     this.subtype=null; // describes the lower level type of event (slash command name, interactive message subtype, ...)
 
-    this.args={
+    var args={
       channelid:null, // channel_id that event originates from
       userid:null, // user_id from whom the event originates
       username:null, // (optional) user_name associated to this.userid
@@ -37,6 +37,8 @@ class SlackEventWrapper {
       mention:{str:null, userid:null, username:null}, // (optional) markdown-formatted mention name
       more:null // (optional) space for extra arguments
     };
+    
+    this.cmd = null; // Command class instance returned by createCommandClassInstance(this.subtype, args)
   }
 
   checkAuthenticity(){
@@ -60,115 +62,26 @@ class SlackEventWrapper {
   }
 
   checkSyntax(){
-    // check syntax of this.type, this.subtype, and this.args depending on function to be called
+    // Check syntax of this.type and parse command+args
 
-    // check this.type
     var accepted_types = ['view_submission', 'command'];
     if(accepted_types.indexOf(this.type) < 0){ // if this.type does not match any accepted_types, return error
       throw new Error(`error: I can't handle the event type ${this.type}.`);
     }
-
-    // match doPost this.subtype with the class it is meant to instantiate
-    var SUBCLASS_FROM_SLACKCMD = globalVariables().SUBCLASS_FROM_SLACKCMD;
-    if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(this.subtype)){ // if no key is found for this.subtype, return error
-      throw new Error(`error: The \`${this.subtype}\` command is not currently supported.`);
-    }
-    if (typeof SUBCLASS_FROM_SLACKCMD[this.subtype] !== 'function'){
-      throw new Error(`error: The \`${this.subtype}\` command is not properly connected on the server.
-                    Can you please notify a developer?`);
-    }
-
-    // check argument syntax for fctName. 
-    // todo: move this into Command subclasses? or at the least change dependency from fctName to subclassName
-    var fctName = globalVariables().SLACKCMD_TO_FUNCTIONNAME[this.subtype];
-    if (!fctName){ // this check is already done in parsing. added here in case corruption occurs during event queuing
-      throw new Error('error: Sorry, the `' + this.subtype + '` command is not currently supported.');
-    }
-    this.checkArgSyntaxRegexp(fctName);
+    
+    this.cmd.parse();
   }
 
-    //// todo: argSyntaxRegexp methods are Arg Class methods (one per arg to check). Each ConcreteCommand has an Arg object and calls relevant arg.methods().
-  checkArgSyntaxRegexp(fctname){
-    // checkArgSyntaxRegexp: check that a particular function fctname has all the correct args by regexp matching
-
-    // load global variables
-    var globvar = globalVariables();
-    var mod_userid = globvar['MOD_USERID'];
-    var mention_mod = '<@'+mod_userid+'>';
-
-    // define all args to check, the functions where they are expected, the regexp they should match and all possible error messages
-    var syntax_object={
-      "uniqueid":{
-        arg:this.args.uniqueid,
-        regexp:"^[0-9]{4}$",
-        fcts:['assign', 'volunteer', 'cancel', 'done_send_modal','done'], // functions this argument is expected in
-        fail_msg_empty:'error: You must provide the request number present in the help request message (example: `/volunteer 9999`). '+
-                                           'You appear to have not typed any number. If the issue persists, contact ' + mention_mod + '.',
-        fail_msg_nomatch:'error: The request number `'+this.args.uniqueid+'` does not appear to be a 4-digit number as expected. '+
-                                           'Please specify a correct request number. Example: `/volunteer 9999`.'
-      },
-      "mention":{
-        arg:this.args.mention.str,
-        regexp:"<@(U[A-Z0-9]+)\\|?(.*)>",
-        fcts:['assign'],
-        fail_msg_empty:'error: You must mention a user that the command applies to. Example: `/assign 9999 ' + mention_mod  + '`.'+
-                    'You appear to have not mentioned anyone. If the issue persists, please contact ' + mention_mod + '.',
-        fail_msg_nomatch:'error: I did not recognise the user `'+this.args.mention.str+'` you specified. Please specify the user by their mention name. Example: `/assign 9999 ' + mention_mod  + '`.'
-      }
-    };
-
-    // iterate check over all potential arguments in syntax_object
-    var msg = ''; // initialise exception message
-    Object.keys(syntax_object).forEach(function(key,index) { // iterate over the object properties of cmd_state_machine.command[cmd].status
-    // key: the name of the object property
-
-      // move to next iteration (i.e. next arg to check) if fctname does not expect the argument syntax_object[key]
-      if(syntax_object[key].fcts.indexOf(fctname) < 0){
-        return;
-      }
-
-      // if argument is expected, check syntax. If wrong syntax, append appropriate error message. If correct syntax and if relevant, do some parsing.
-
-      if (!syntax_object[key].arg || syntax_object[key].arg == ''){ // personalise error message if arg was not specified at all
-        msg += '\n' + syntax_object[key].fail_msg_empty;
-      } else{
-
-        // regexp match arg
-        var re = new RegExp(syntax_object[key].regexp);
-        var re_match = re.exec(syntax_object[key].arg); // RegExp.exec returns array if match (null if not). First element is matched string, following elements are matched groupings.
-
-        if (!re_match){ // if arg did not match syntax, add to error message
-          msg += '\n' + syntax_object[key].fail_msg_nomatch;
-        } else { // or do some optional parsing if successful
-          if (key === 'mention'){ // parse userid and username from user mention string
-            this.args.mention.userid = re_match[1];
-            this.args.mention.username = re_match[2];
-          }
-        }
-      }
-    }, this); // make sure to pass this in forEach to maintain scope
-
-    if (msg !== ''){ // if any syntactic error was picked up, wrap and throw exception
-      msg = 'I wasn\'t able to process your command for the following reasons:' + msg;
-      throw new Error(msg);
-    }
-  }
-
-  handleEvent (){
-    // handle slack doPost event
-
+  handle(){
     // Process Command
+    
     if (globalVariables()["SYNC_COMMANDS"].indexOf(this.subtype) != -1){
       // Handle Sync
-      var immediateReturnMessage = processFunctionSync(this.subtype, this.args);
+      var immediateReturnMessage = this.cmd.execute(); 
     } else {
       // Handle Async
-      if(this.subtype==='done_modal'){
-        var immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
-      } else{
-      var immediateReturnMessage = "Thank you for your message. I\'m a poor bot so please be patient... it should take me up to a few minutes to get back to you...";
-      }
-      processFunctionAsync(this.subtype, this.args);
+      var immediateReturnMessage = this.cmd.immediateReturnMessage;
+      processFunctionAsync(this.subtype, this.cmd.args);
     }
     
     return contentServerJsonReply(immediateReturnMessage);
@@ -187,12 +100,15 @@ class SlackInteractiveMessageEvent extends SlackEventWrapper {
 
     var metadata_parsed = JSON.parse(par.view.private_metadata);
 
-    this.args.channelid = metadata_parsed.channelid;
-    this.args.userid = par.user.id;
-    this.args.response_url = metadata_parsed.response_url;
+    var args={};
+    args.channelid = metadata_parsed.channelid;
+    args.userid = par.user.id;
+    args.response_url = metadata_parsed.response_url;
 
-    this.args.uniqueid = metadata_parsed.uniqueid;
-    this.args.more = par.view.state.values;
+    args.uniqueid = metadata_parsed.uniqueid;
+    args.more = par.view.state.values;
+    
+    this.cmd = createCommandClassInstance(this.subtype, args);
   }
 }
 
@@ -205,15 +121,19 @@ class SlackSlashCommandEvent extends SlackEventWrapper {
     this.type = 'command';
     this.subtype = par.command;
 
-    this.args.channelid = par.channel_id;
-    this.args.userid = par.user_id;
-    this.args.username = par.user_name;
-    this.args.response_url = par.response_url;
-    this.args.trigger_id = par.trigger_id;
+    var args={};
+    args.channelid = par.channel_id;
+    args.userid = par.user_id;
+    args.username = par.user_name;
+    args.response_url = par.response_url;
+    args.trigger_id = par.trigger_id;
 
+    args.mention = {};
     if(par.text){
-      [this.args.uniqueid, this.args.mention.str] = par.text.split(' ');
+      [args.uniqueid, args.mention.str] = par.text.split(' ');
     }
+    
+    this.cmd = createCommandClassInstance(this.subtype, args);
   }
 
 }

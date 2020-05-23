@@ -3,12 +3,15 @@ function doPost(e) { // catches slack POST requests
     var slackEvent = createSlackEventClassInstance(e);
     slackEvent.checkAuthenticity();
     slackEvent.checkSyntax();
-    return slackEvent.handleEvent();
+    return slackEvent.handle();
   }
   catch(errObj){
+    if (errObj instanceof TypeError  || errObj instanceof ReferenceError){
+      // if a code error, throw the full error log
+      throw errObj;
+    }
     return contentServerJsonReply(errObj.message);
   }
-  
 }
 
 
@@ -112,9 +115,7 @@ function triggerOnEdit(e){ // this is an installed trigger. see https://develope
       if(newValue=='Re-open'){ // if "re-open", trigger the cancel function as a super-user
         var args = {uniqueid:uniqueid, userid:globvar['MOD_USERID']};
         var commandWrapper = new CancelCommand(args);
-        commandWrapper.getSheetData();
-        commandWrapper.updateSheet();
-        commandWrapper.sendSlackPayloads();
+        commandWrapper.execute_superUser();
       } 
       else { // for other status changes, just log the change
         var sheet_log = spreadsheet.getSheetByName(log_sheetname);
