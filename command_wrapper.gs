@@ -208,7 +208,7 @@ class CancelCommand extends Command {
   }
   
   sendSlackPayloads(){
-    var out_message = `<!channel> <@${this.slackVolunteerID_old}> is no longer available. Can anyone else volunteer? Type \`/volunteer ${this.row.uniqueid} \``;
+    var out_message = `<!channel> <@${this.slackVolunteerID_old}> is no longer available for ${requestFormatted(this.row)}. Can anyone else help? Type \`/volunteer ${this.row.uniqueid} \``;
     var payload = JSON.stringify({
     text: out_message,
       thread_ts: this.row.slackTS,
