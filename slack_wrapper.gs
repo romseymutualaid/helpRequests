@@ -181,7 +181,7 @@ class SlackEventWrapper {
       "uniqueid":{
         arg:this.args.uniqueid,
         regexp:"^[0-9]{4}$",
-        fcts:['assign', 'volunteer', 'cancel', 'done_send_modal','done_process_modal'], // functions this argument is expected in
+        fcts:['assign', 'volunteer', 'cancel', 'done_send_modal','done'], // functions this argument is expected in
         fail_msg_empty:'error: You must provide the request number present in the help request message (example: `/volunteer 9999`). '+
                                            'You appear to have not typed any number. If the issue persists, contact ' + mention_mod + '.',
         fail_msg_nomatch:'error: The request number `'+this.args.uniqueid+'` does not appear to be a 4-digit number as expected. '+
