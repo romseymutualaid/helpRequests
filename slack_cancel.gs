@@ -51,7 +51,7 @@ Can you please ask ${mention_requestCoord} to remove you manually?`);
   tracking_sheet.writeRow(row);
 
   // update log sheet
-  log_sheet.appendRow([new Date(), row.uniqueid,'admin','slackCommand','cancel']);
+  log_sheet.appendRow([new Date(), row.uniqueid, userid,'slackCommand','cancel']);
   log_sheet.appendRow([new Date(), row.uniqueid, 'admin','confirmCancel', return_message]);
 
   // reply privately to user
