@@ -49,15 +49,15 @@ class SlackEventWrapper {
 
     // check token
     if(!token_true){ // check that token_true has been set in script properties
-      throw new Error('error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.');
+      throw new Error(slackTokenNotSetInScriptMessage());
     }
     if (this.token !== token_true) {
-      throw new Error('error: Invalid token ' + this.token + ' . The command will not run. Please contact the web app developer.');
+      throw new Error(slackTokenIsIncorrectMessage(this.token));
     }
 
     // check request originates from our slack workspace
     if (this.teamid != teamid_true){
-      throw new Error('error: You are sending your command from an unauthorised slack workspace.');
+      throw new Error(slackWorspaceIsIncorrectMessage());
     }
   }
 
@@ -66,7 +66,7 @@ class SlackEventWrapper {
 
     var accepted_types = ['view_submission', 'command'];
     if(accepted_types.indexOf(this.type) < 0){ // if this.type does not match any accepted_types, return error
-      throw new Error(`error: I can't handle the event type ${this.type}.`);
+      throw new Error(slackEventTypeIsIncorrectMessage(this.type));
     }
     
     this.cmd.parse();

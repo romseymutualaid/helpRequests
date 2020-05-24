@@ -131,11 +131,31 @@ var cancelSuccessMessage = function(row){
 I've notified the channel.`);
 }
 
+var doneSendModalSuccessMessage = function(args){
+  return textToJsonBlocks(`A request completion form will open in less than 3 seconds... If not, please type \`/done ${args.uniqueid}\` again.`);
+}
+
 var doneSuccessMessage = function(row){
   return textToJsonBlocks(
 `You have confirmed your interaction with ${requestFormatted(row)}.
 I've notified volunteers in the help request thread and sent
 your form submission to the request coordinator on-duty.`);
+}
+
+var assignPendingMessage = function(){
+  return textToJsonBlocks(`Assigning volunteer on behalf...`);
+}
+
+var volunteerChannelMessage = function(row){
+  return `<@${row.slackVolunteerID}> has volunteered. :tada:`;
+}
+
+var cancelChannelMessage = function(row, oldVolunteerUserID){
+  return `<!channel> <@${oldVolunteerUserID}> is no longer available for ${requestFormatted(row)}. Can anyone else help? Type \`/volunteer ${row.uniqueid} \``;
+}
+
+var doneChannelMessage = function(row){
+  return `Thanks for helping out <@${row.slackVolunteerID}>! :nerd_face:`;
 }
 
 var listLineMessage = function(row, printStatus=false, printVolunteer=false) {
@@ -149,8 +169,75 @@ var listLineMessage = function(row, printStatus=false, printVolunteer=false) {
   
   return msg+'\n';
 }
+    
+var listHeaderMessage = function(commandName){
+  switch (commandName) {
+    case 'list':
+      return 'These are the help requests in this channel still awaiting a volunteer:\n';
+    case 'listactive':
+      return 'These are all the active requests in this channel:\n';
+    case 'listall':
+      return 'These are all the requests posted in this channel:\n';
+    case 'listmine':
+      return 'These are the active help requests you are assigned to in this channel:\n';
+    case 'listallmine':
+      return 'These are all the help requests you volunteered for in this channel:\n';
+    default:
+      throw new Error(textToJsonBlocks(`I don't recognise the list command \`${commandName}\`. Can you please contact a developer?`));
+  }
+}
 
-var uniqueIDdoesNotExist = function(args){
+var slackTokenNotSetInScriptMessage = function(){
+  return 'error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.';
+}
+                      
+var slackTokenIsIncorrectMessage = function(token){
+  return `error: Invalid token ${token}. The command will not run. Please contact the web app developer.`;
+}
+      
+var slackWorspaceIsIncorrectMessage = function(){
+  return 'error: You are sending your command from an unauthorised slack workspace.';
+}
+
+var slackEventTypeIsIncorrectMessage = function(eventType){
+  return `error: I can't handle the event type ${eventType}.`;
+}
+
+var commandNotSupportedMessage = function(commandName){
+  return `error: The \`${commandName}\` command is not currently supported.`;
+}
+
+var commandNotConnectedMessage = function(commandName){
+  return `error: The \`${commandName}\` command is not properly connected on the server.
+Can you please notify a developer?`;
+}
+
+var commandArgumentsAreCorruptedMessage = function(){
+return `error: I couldn't process the arguments provided. Can you please notify a developer?`;
+}
+
+var commandAvailableOnlyToModeratorMessage = function(commandName){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return textToJsonBlocks(`error: The \`${commandName}\` command can only be used by ${mention_mod}.`);
+}
+
+var commandPendingMessage = function(){
+  return `Thank you for your message. I'm a poor bot so please be patient... it should take me up to a few minutes to get back to you...`;
+}
+
+var uniqueIDnotProvidedMessage = function(){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return `error: You must provide the request number present in the help request message (example: \`/volunteer 9999\`).
+You appear to have not typed any number. If the issue persists, contact ${mention_mod}.`;
+}
+
+var uniqueIDsyntaxIsIncorrectMessage = function(args){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return `error: The request number \`${args.uniqueid}\` does not appear to be a 4-digit number as expected.
+Please specify a correct request number (example: \`/volunteer 9999\`). If the issue persists, contact ${mention_mod}.`;
+}
+
+var uniqueIDdoesNotExistMessage = function(args){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   return textToJsonBlocks(
 `error: I couldn't find the request number \`${args.uniqueid}\`. Did you type the right number?
@@ -158,12 +245,24 @@ Type \`/listmine\` to list the requests you are currently volunteering for in th
 If the issue persists, please contact ${mention_mod}.`);
 }
 
-var uniqueIDlookupIsCorrupted = function(row, args){
+var uniqueIDlookupIsCorruptedMessage = function(row, args){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   return textToJsonBlocks(
 `error: There is a problem in the spreadsheet on the server.
 You asked for request-number ${args.uniqueid}, but I found request-number ${row.uniqueid} in its place.
 Please can you notify a developer and ask ${mention_mod} for assistance?`);
+}
+
+var userMentionNotProvidedMessage = function(){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return `error: You must mention a user that the command applies to (example: \`/assign 9999 ${mention_mod}\`).
+You appear to have not mentioned anyone. If the issue persists, contact ${mention_mod}.`;
+}
+
+var userMentionSyntaxIsIncorrectMessage = function(args){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return `error: I did not recognise the user \`${args.mention.str}\` you specified. 
+Please specify the user by their mention name (example: \`/assign 9999 ${mention_mod}\`). If the issue persists, contact ${mention_mod}.`;
 }
 
 var wrongChannelMessage = function(row){

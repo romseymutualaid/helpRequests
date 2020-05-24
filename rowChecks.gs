@@ -2,7 +2,7 @@ var checkUniqueIDexists = function(row, args) {
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   
   if (isVarInArray(row.uniqueid,["",null,undefined])){
-    throw new Error(uniqueIDdoesNotExist(args));
+    throw new Error(uniqueIDdoesNotExistMessage(args));
   }
 }
 
@@ -10,7 +10,7 @@ var checkUniqueIDconsistency = function(row, args) {
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   
   if (row.uniqueid !== args.uniqueid){
-    throw new Error(uniqueIDlookupIsCorrupted(row,args));
+    throw new Error(uniqueIDlookupIsCorruptedMessage(row,args));
   }
 }
 

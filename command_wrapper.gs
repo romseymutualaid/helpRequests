@@ -8,14 +8,13 @@ var createCommandClassInstance = function(slackCmdString, args){
   var SUBCLASS_FROM_SLACKCMD = globalVariables().SUBCLASS_FROM_SLACKCMD;
   
   if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(slackCmdString)){ // if no key is found for slackCmdString, return error
-    throw new Error(`error: The \`${slackCmdString}\` command is not currently supported.`);
+    throw new Error(commandNotSupportedMessage(slackCmdString));
   }
   if (typeof SUBCLASS_FROM_SLACKCMD[slackCmdString] !== 'function'){
-    throw new Error(`error: The \`${slackCmdString}\` command is not properly connected on the server.
-                    Can you please notify a developer?`);
+    throw new Error(commandNotConnectedMessage(slackCmdString));
   }
   if (typeof args !== 'object' || args === null){
-    throw new Error(`error: I couldn't process the arguments provided. Can you please notify a developer?`);
+    throw new Error(commandArgumentsAreCorruptedMessage());
   }
   
   return new SUBCLASS_FROM_SLACKCMD[slackCmdString](args);
@@ -40,23 +39,16 @@ class CommandArgs {
   
   parseUniqueID(){
     var regexpToMatch = "^[0-9]{4}$";
-    var msg_empty_str = `error: You must provide the request number present in the help request message (example: \`/volunteer 9999\`).
-    You appear to have not typed any number. If the issue persists, contact ${this.mention_mod}.`;
-    var msg_nomatch_str = `error: The request number \`${this.uniqueid}\` does not appear to be a 4-digit number as expected.
-    Please specify a correct request number (example: \`/volunteer 9999\`). If the issue persists, contact ${this.mention_mod}.`;
-    
+    var msg_empty_str = uniqueIDnotProvidedMessage();
+    var msg_nomatch_str = uniqueIDsyntaxIsIncorrectMessage(this);
     extractMatchOrThrowError(this.uniqueid, regexpToMatch, msg_empty_str, msg_nomatch_str);
   }
   
   parseMentionString(){
     var regexpToMatch = "<@(U[A-Z0-9]+)\\|?(.*)>";
-    var msg_empty_str = `error: You must mention a user that the command applies to (example: \`/assign 9999 ${this.mention_mod}\`).
-    You appear to have not mentioned anyone. If the issue persists, contact ${this.mention_mod}.`;
-    var msg_nomatch_str = `error: I did not recognise the user \`${this.mention.str}\` you specified. 
-    Please specify the user by their mention name (example: \`/assign 9999 ${this.mention_mod}\`). If the issue persists, contact ${this.mention_mod}.`;
-    
+    var msg_empty_str = userMentionNotProvidedMessage();
+    var msg_nomatch_str = userMentionSyntaxIsIncorrectMessage(this);
     var re_match = extractMatchOrThrowError(this.mention.str, regexpToMatch, msg_empty_str, msg_nomatch_str);
-    
     this.mention.userid = re_match[1];
     this.mention.username = re_match[2];
   }
@@ -73,7 +65,7 @@ class CommandArgs {
 class Command {
   constructor(args){
     this.args = new CommandArgs(args);
-    this.immediateReturnMessage = "Thank you for your message. I\'m a poor bot so please be patient... it should take me up to a few minutes to get back to you...";
+    this.immediateReturnMessage = commandPendingMessage();
   }
   
   parse(){}
@@ -118,7 +110,7 @@ class AssignCommand extends Command {
     // check userid is a moderator
     var mod_userid = globalVariables()['MOD_USERID'];
     if(!this.args.matchUserID(mod_userid)){
-      throw new Error(textToJsonBlocks(`error: The \`assign\` command can only be used by <@${mod_userid}>.`));
+      throw new Error(commandAvailableOnlyToModeratorMessage("assign"));
     }
     
     this.args.parseUniqueID();
@@ -126,7 +118,7 @@ class AssignCommand extends Command {
   }
   
   formulateUserResponse(){
-    return textToJsonBlocks(`Assigning volunteer on behalf...`);
+    return assignPendingMessage();
   }
   
   nextCommand(){  
@@ -167,7 +159,7 @@ class VolunteerCommand extends Command {
   }
   
   sendSlackPayloads(){
-    var out_message = `<@${this.row.slackVolunteerID}> has volunteered. :tada:`;
+    var out_message = volunteerChannelMessage(this.row);
     var payload = JSON.stringify({
       text: out_message,
       thread_ts: this.row.slackTS,
@@ -209,7 +201,7 @@ class CancelCommand extends Command {
   }
   
   sendSlackPayloads(){
-    var out_message = `<!channel> <@${this.slackVolunteerID_old}> is no longer available for ${requestFormatted(this.row)}. Can anyone else help? Type \`/volunteer ${this.row.uniqueid} \``;
+    var out_message = cancelChannelMessage(this.row,this.slackVolunteerID_old)                                                                                                            
     var payload = JSON.stringify({
     text: out_message,
       thread_ts: this.row.slackTS,
@@ -229,7 +221,7 @@ class DoneSendModalCommand extends Command {
   }
   
   formulateUserResponse(){
-    return textToJsonBlocks(`A request completion form will open in less than 3 seconds... If not, please type \`/done ${this.args.uniqueid}\` again.`);
+    return doneSendModalSuccessMessage(this.args);
   }
   
   sendSlackPayloads(){ // Send post request to Slack views.open API to open a modal for user
@@ -295,7 +287,7 @@ class DoneCommand extends Command {
   }
   
   sendSlackPayloads(){
-    var out_message = `Thanks for helping out <@${this.row.slackVolunteerID}>! :nerd_face:`;
+    var out_message = doneChannelMessage(this.row);
     var payload = JSON.stringify({
       text: out_message,
       thread_ts: this.row.slackTS,
@@ -321,7 +313,7 @@ class ListCommand extends Command {
   }
   
   formulateUserResponse(){
-    var message_out = 'These are the help requests in this channel still awaiting a volunteer:\n';
+    var message_out = listHeaderMessage('list');
 
     var classScope = this;
     this.rows.forEach(function(row) { // append...
@@ -346,7 +338,7 @@ class ListActiveCommand extends Command {
   }
   
   formulateUserResponse(){
-    var message_out = 'These are all the active requests in this channel:\n';
+    var message_out = listHeaderMessage('listactive');
 
     var classScope = this;
     this.rows.forEach(function(row) {
@@ -371,7 +363,7 @@ class ListAllCommand extends Command {
   }
   
   formulateUserResponse(){
-    var message_out = 'These are all the requests posted in this channel:\n';
+    var message_out = listHeaderMessage('listall');
 
     var classScope = this;
     this.rows.forEach(function(row) {
@@ -395,7 +387,7 @@ class ListMineCommand extends Command {
   }
   
   formulateUserResponse(){
-    var message_out = 'These are the active help requests you are assigned to in this channel:\n';
+    var message_out = listHeaderMessage('listmine');
 
     var classScope = this;
     this.rows.forEach(function(row) {
@@ -412,7 +404,7 @@ class ListMineCommand extends Command {
 
 
 /**
- *  Manage a listmine command from user or moderator
+ *  Manage a listallmine command from user or moderator
  */
 class ListAllMineCommand extends Command {
   
@@ -421,7 +413,7 @@ class ListAllMineCommand extends Command {
   }
   
   formulateUserResponse(){
-    var message_out = 'These are all the help requests you volunteered for in this channel:\n';
+    var message_out = listHeaderMessage('listallmine');
 
     var classScope = this;
     this.rows.forEach(function(row) {
