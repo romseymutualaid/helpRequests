@@ -18,7 +18,7 @@ function getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROW
 //****************************************
 
 
-var regexpMatch = function(str, regexp, msg_empty_str, msg_nomatch_str){
+var extractMatchOrThrowError = function(str, regexp, msg_empty_str, msg_nomatch_str){
   if (!str || str == ''){
     throw new Error(msg_empty_str);
   }

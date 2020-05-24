@@ -38,14 +38,14 @@ class CommandArgs {
     this.mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   }
   
-  parseUniqueID(){ // todo: replace with matchUniqueID("^[0-9]{4}$",msg_empty_str,msg_nomatch_str)
+  parseUniqueID(){
     var regexpToMatch = "^[0-9]{4}$";
     var msg_empty_str = `error: You must provide the request number present in the help request message (example: \`/volunteer 9999\`).
     You appear to have not typed any number. If the issue persists, contact ${this.mention_mod}.`;
     var msg_nomatch_str = `error: The request number \`${this.uniqueid}\` does not appear to be a 4-digit number as expected.
     Please specify a correct request number (example: \`/volunteer 9999\`). If the issue persists, contact ${this.mention_mod}.`;
     
-    regexpMatch(this.uniqueid, regexpToMatch, msg_empty_str, msg_nomatch_str);
+    extractMatchOrThrowError(this.uniqueid, regexpToMatch, msg_empty_str, msg_nomatch_str);
   }
   
   parseMentionString(){
@@ -55,17 +55,14 @@ class CommandArgs {
     var msg_nomatch_str = `error: I did not recognise the user \`${this.mention.str}\` you specified. 
     Please specify the user by their mention name (example: \`/assign 9999 ${this.mention_mod}\`). If the issue persists, contact ${this.mention_mod}.`;
     
-    var re_match = regexpMatch(this.mention.str, regexpToMatch, msg_empty_str, msg_nomatch_str);
+    var re_match = extractMatchOrThrowError(this.mention.str, regexpToMatch, msg_empty_str, msg_nomatch_str);
     
     this.mention.userid = re_match[1];
     this.mention.username = re_match[2];
   }
   
   matchUserID(str_to_match){
-    if(this.userid!=str_to_match){
-      return false;
-    }
-    return true;
+    return (this.userid === str_to_match);
   }
 }
 
@@ -330,7 +327,7 @@ class ListCommand extends Command {
     this.rows.forEach(function(row) { // append...
       if (isVarInArray(row.requestStatus,['','Sent']) && 
           row.channelid == classScope.args.channelid) { // ... if empty status and correct channel
-        message_out += printRequestSummary(row);
+        message_out += listLineMessage(row);
       }
     });
     
@@ -355,7 +352,7 @@ class ListActiveCommand extends Command {
     this.rows.forEach(function(row) {
       if (isVarInArray(row.requestStatus,['','Sent','Assigned','Ongoing']) && 
           row.channelid == classScope.args.channelid) { // non-closed status and correct channel
-        message_out += printRequestSummary(row,true,true);
+        message_out += listLineMessage(row,true,true);
       }
     });
     
@@ -379,7 +376,7 @@ class ListAllCommand extends Command {
     var classScope = this;
     this.rows.forEach(function(row) {
       if (row.channelid == classScope.args.channelid) { // correct channel
-        message_out += printRequestSummary(row,true,true);
+        message_out += listLineMessage(row,true,true);
       }
     });
     
@@ -405,7 +402,7 @@ class ListMineCommand extends Command {
       if (isVarInArray(row.requestStatus,['Assigned','Ongoing']) && 
           row.slackVolunteerID == classScope.args.userid && 
           row.channelid == classScope.args.channelid) { // non-closed status, belongs to user and correct channel
-        message_out += printRequestSummary(row,false,false);
+        message_out += listLineMessage(row,false,false);
       }
     });
     
@@ -430,7 +427,7 @@ class ListAllMineCommand extends Command {
     this.rows.forEach(function(row) {
       if (row.slackVolunteerID == classScope.args.userid && 
           row.channelid == classScope.args.channelid) { //  belongs to user and correct channel
-        message_out += printRequestSummary(row,true,false);
+        message_out += listLineMessage(row,true,false);
       }
     });
     

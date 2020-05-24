@@ -2,10 +2,7 @@ var checkUniqueIDexists = function(row, args) {
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   
   if (isVarInArray(row.uniqueid,["",null,undefined])){
-    throw new Error(textToJsonBlocks(
-      `error: I couldn't find the request number \`${args.uniqueid}\`. Did you type the right number?
-      Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
-      If the issue persists, please contact ${mention_mod}.`));
+    throw new Error(uniqueIDdoesNotExist(args));
   }
 }
 
@@ -13,10 +10,7 @@ var checkUniqueIDconsistency = function(row, args) {
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   
   if (row.uniqueid !== args.uniqueid){
-    throw new Error(textToJsonBlocks(
-      `error: There is a problem in the spreadsheet on the server.
-      You asked for request-number ${args.uniqueid}, but I could only find request-number ${row.uniqueid}.
-      Please can you notify a developer and ask ${mention_mod} for assistance?`));
+    throw new Error(uniqueIDlookupIsCorrupted(row,args));
   }
 }
 
@@ -24,10 +18,7 @@ var checkChannelIDconsistency = function(row, args) {
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   
   if (row.channelid !== args.channelid){
-    throw new Error(textToJsonBlocks(
-      `error: The request ${row.uniqueid} does not appear to belong to the channel you are writing from.
-      Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
-      If the issue persists, please contact ${mention_mod}.`));
+    throw new Error(wrongChannelMessage(row));
   }
 }
 
