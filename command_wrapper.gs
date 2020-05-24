@@ -38,7 +38,7 @@ class CommandArgs {
     this.mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   }
   
-  parseUniqueID(){
+  parseUniqueID(){ // todo: replace with matchUniqueID("^[0-9]{4}$",msg_empty_str,msg_nomatch_str)
     var regexpToMatch = "^[0-9]{4}$";
     var msg_empty_str = `error: You must provide the request number present in the help request message (example: \`/volunteer 9999\`).
     You appear to have not typed any number. If the issue persists, contact ${this.mention_mod}.`;
@@ -162,9 +162,11 @@ class VolunteerCommand extends Command {
   }
   
   formulateUserResponse(){
-    // todo: convert checkCommandValidity into a more modular function that each subclass can call with custom parameters defined here
-    var cmd_check_msg = checkCommandValidity('volunteer',this.row,this.args.uniqueid,this.args.userid,this.args.channelid);
-    return cmd_check_msg;
+    checkUniqueIDexists(this.row, this.args);
+    checkUniqueIDconsistency(this.row, this.args);
+    checkChannelIDconsistency(this.row, this.args);
+    checkRowIsVolunteerable(this.row, this.args);
+    return volunteerSuccessMessage(this.row,true);
   }
   
   sendSlackPayloads(){
@@ -202,9 +204,11 @@ class CancelCommand extends Command {
   }
   
   formulateUserResponse(){
-    // todo: convert checkCommandValidity into a more modular function that each subclass can call with custom parameters defined here
-    var cmd_check_msg = checkCommandValidity('cancel',this.row,this.args.uniqueid,this.args.userid,this.args.channelid);
-    return cmd_check_msg;
+    checkUniqueIDexists(this.row, this.args);
+    checkUniqueIDconsistency(this.row, this.args);
+    checkChannelIDconsistency(this.row, this.args);
+    checkRowIsCancellable(this.row, this.args);
+    return cancelSuccessMessage(this.row,true);
   }
   
   sendSlackPayloads(){
@@ -286,9 +290,11 @@ class DoneCommand extends Command {
   }
   
   formulateUserResponse(){
-    // todo: convert checkCommandValidity into a more modular function that each subclass can call with custom parameters defined here
-    var cmd_check_msg = checkCommandValidity('done',this.row,this.args.uniqueid,this.args.userid,this.args.channelid);
-    return cmd_check_msg;
+    checkUniqueIDexists(this.row, this.args);
+    checkUniqueIDconsistency(this.row, this.args);
+    checkChannelIDconsistency(this.row, this.args);
+    checkRowAcceptsDone(this.row, this.args);
+    return doneSuccessMessage(this.row,true);
   }
   
   sendSlackPayloads(){
@@ -322,7 +328,8 @@ class ListCommand extends Command {
 
     var classScope = this;
     this.rows.forEach(function(row) { // append...
-      if ((row.requestStatus == '' || row.requestStatus == 'Sent') && row.channelid == classScope.args.channelid) { // ... if empty status and correct channel
+      if (isVarInArray(row.requestStatus,['','Sent']) && 
+          row.channelid == classScope.args.channelid) { // ... if empty status and correct channel
         message_out += printRequestSummary(row);
       }
     });
@@ -346,7 +353,7 @@ class ListActiveCommand extends Command {
 
     var classScope = this;
     this.rows.forEach(function(row) {
-      if ((row.requestStatus == '' || row.requestStatus == 'Sent' || row.requestStatus == 'Assigned' || row.requestStatus == 'Ongoing') && 
+      if (isVarInArray(row.requestStatus,['','Sent','Assigned','Ongoing']) && 
           row.channelid == classScope.args.channelid) { // non-closed status and correct channel
         message_out += printRequestSummary(row,true,true);
       }
@@ -395,8 +402,9 @@ class ListMineCommand extends Command {
 
     var classScope = this;
     this.rows.forEach(function(row) {
-      if ((row.requestStatus == '' || row.requestStatus == 'Sent' || row.requestStatus == 'Assigned' || row.requestStatus == 'Ongoing') && 
-          row.slackVolunteerID == classScope.args.userid && row.channelid == classScope.args.channelid) { // non-closed status, belongs to user and correct channel
+      if (isVarInArray(row.requestStatus,['Assigned','Ongoing']) && 
+          row.slackVolunteerID == classScope.args.userid && 
+          row.channelid == classScope.args.channelid) { // non-closed status, belongs to user and correct channel
         message_out += printRequestSummary(row,false,false);
       }
     });
@@ -420,7 +428,8 @@ class ListAllMineCommand extends Command {
 
     var classScope = this;
     this.rows.forEach(function(row) {
-      if (row.slackVolunteerID == classScope.args.userid && row.channelid == classScope.args.channelid) { //  belongs to user and correct channel
+      if (row.slackVolunteerID == classScope.args.userid && 
+          row.channelid == classScope.args.channelid) { //  belongs to user and correct channel
         message_out += printRequestSummary(row,true,false);
       }
     });

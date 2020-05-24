@@ -16,7 +16,7 @@ class TrackingSheetWrapper {
     // Make a row object from a row array.
     var row = {};
     for (var i = 0; i < this.columns.length; i++) {
-      row[this.columns[i]] = rowArray[i];
+      row[this.columns[i]] = rowArray[i].toString();
     }
     return row;
   }

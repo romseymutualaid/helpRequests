@@ -35,18 +35,23 @@ var textToJsonBlocks = function(text, ephemeral=true, type="mrkdwn"){
   return JSON.stringify(blocks);
 }
 
+function requestFormatted(row){
+  return `<${row.slackURL}|request ${row.uniqueid}> (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
+}
 
-function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_requestCoord, address, contactDetails, householdSituation,isFirstMessage) {
+function volunteerSuccessMessage(row, isFirstMessage) {
+  var mention_requestCoord = globalVariables()['MENTION_REQUESTCOORD'];
+  
   var householdMessage = "";
-  if (householdSituation != ""){
-    householdMessage = "\nTheir household situation is: " + householdSituation + ".\n"
+  if (row.householdSit != ""){
+    householdMessage = "\nTheir household situation is: " + row.householdSit + ".\n"
   }
 
   // personalise text depending on whether this is the first time volunteer sees the message or not
   if (isFirstMessage){
-    var introTxt = ":nerd_face::tada: You signed up for <" + slackurl + "|request " + uniqueid + ">."
+    var introTxt = ":nerd_face::tada: You signed up for <" + row.slackURL + "|request " + row.uniqueid + ">."
   } else{
-    var introTxt = ":nerd_face::tada: You are still signed up for <" + slackurl + "|request " + uniqueid + ">."
+    var introTxt = ":nerd_face::tada: You are still signed up for <" + row.slackURL + "|request " + row.uniqueid + ">."
   }
 
   // Json Template for replying to successful volunteer messages.
@@ -63,9 +68,9 @@ function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_reques
       "type": "section",
       "text": {
         "type": "plain_text",
-                "text": "The requester's name is " + requesterName +
-                        ".\n Their address is: " + address +
-                        ".\n And their contact details are: " + contactDetails +
+                "text": "The requester's name is " + row.requesterName +
+                        ".\n Their address is: " + row.requesterAddr +
+                        ".\n And their contact details are: " + row.requesterContact +
                         householdMessage
       }
     },
@@ -73,21 +78,21 @@ function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_reques
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "When you are done, type `/done " + uniqueid + "`"
+        "text": "When you are done, type `/done " + row.uniqueid + "`"
       }
     },
     {
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "To cancel your help offer, type `/cancel " + uniqueid + "`"
+        "text": "To cancel your help offer, type `/cancel " + row.uniqueid + "`"
       }
     },
     {
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "To see this message again, type `/volunteer " + uniqueid + "`"
+        "text": "To see this message again, type `/volunteer " + row.uniqueid + "`"
       }
     },
     {
@@ -100,6 +105,68 @@ function volunteerSuccessReply(slackurl, uniqueid, requesterName, mention_reques
   ]
   });
 }
+
+var cancelSuccessMessage = function(row){
+  return textToJsonBlocks(`You just cancelled your offer for help for ${requestFormatted(row)}.
+      I've notified the channel.`);
+}
+
+var doneSuccessMessage = function(row){
+  return textToJsonBlocks(
+`You have confirmed your interaction with ${requestFormatted(row)}.
+I've notified volunteers in the help request thread and sent
+your form submission to the request coordinator on-duty.`);
+}
+
+
+var requestAssignedToOtherUserMessage = function(row){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return textToJsonBlocks(
+        `error: ${requestFormatted(row)} is taken by someone else (<@${row.slackVolunteerID}>).
+      Type \`/list\` to list all the available requests in this channel.
+      If you think there is a mistake, please contact ${mention_mod}.`);
+}
+
+var requestUnassignedMessage = function(row){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return textToJsonBlocks(
+        `error: ${requestFormatted(row)} is yet to be assigned.
+        Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+        If you think there is a mistake, please contact ${mention_mod}.`);
+}
+
+var requestClosedVolunteerMessage = function(row){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return textToJsonBlocks(
+    `${requestFormatted(row)} is now closed. Thank you for your help!
+    Type \`/list\` to list all the available requests in this channel.
+    If you think there is a mistake, please contact ${mention_mod}.`);
+}
+
+var requestClosedCancelMessage = function(row){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return textToJsonBlocks(
+         `You were signed up on ${requestFormatted(row)} but it's now closed. We therefore won't remove you.
+         Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+         If you think there is a mistake, please contact ${mention_mod}.`);
+}
+           
+var requestClosedDoneMessage = function(row){
+   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];                                                
+return textToJsonBlocks(`error: You cannot complete ${requestFormatted(row)} because it is permanently closed.
+Type \`/listmine\` to list the requests you are currently volunteering for in this channel.
+If you think there is a mistake, please contact ${mention_mod}.`);
+}
+           
+var requestStatusNotRecognisedMessage = function(row){
+   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];                                              
+   return textToJsonBlocks(
+`error: There is a problem in the spreadsheet on the server.
+I couldn't recognise the current status value "${row.requestStatus}" of request ${row.uniqueid}.
+Please can you notify a developer and ask ${mention_mod} for assistance?`);
+}
+                                                            
+
 
 
 

@@ -90,7 +90,7 @@ function globalVariables(){
       '/ib_d':DoneSendModalCommand
     },
     
-    // Commands that are to be processed async
+    // Commands that are to be processed sync
     SYNC_COMMANDS: [
       '/jb_d',
       '/ib_d',
