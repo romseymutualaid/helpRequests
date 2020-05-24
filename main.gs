@@ -1,22 +1,23 @@
 function doPost(e) { // catches slack POST requests
-  if (typeof e !== 'undefined') {
-
-    // parse the event object and proceed if successful
-    var slackEvent = new SlackEventWrapper();
-    var parsingCheck = slackEvent.parseEvent(e);
-    if (!parsingCheck.code){
-      return contentServerJsonReply(parsingCheck.msg);
+  try{
+    var slackEvent = createSlackEventClassInstance(e);
+    slackEvent.checkAuthenticity();
+    slackEvent.checkSyntax();
+    return slackEvent.handle();
+  }
+  catch(errObj){
+    if (errObj instanceof TypeError  || errObj instanceof ReferenceError){
+      // if a code error, throw the full error log
+      throw errObj;
     }
-
-    // Handle event.
-    return slackEvent.handleEvent();
+    return contentServerJsonReply(errObj.message);
   }
 }
 
 
 function triggerOnFormSubmit (e){ // this is an installed trigger. see https://developers.google.com/apps-script/guides/triggers/installable
   // this function is called when manual form submission occurs. We use this trigger to detect incoming help requests, and when these already have a channel specified, are directly sent to the relevant slack channel.
-
+  
   // handle trigger depending on which form the submission originates from
   var eventForm = JSON.parse(PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
 
@@ -106,16 +107,17 @@ function triggerOnEdit(e){ // this is an installed trigger. see https://develope
       var sheet_log = spreadsheet.getSheetByName(log_sheetname);
       postRequest(sheet, rowindex, tracking_sheet_col_index, webhook_chatPostMessage, access_token, 'dispatchUpdate', sheet_log);
 
-    } else if (colindex==colindex_status+1){ // handle status edit
-
-      if(newValue=='Re-open'){ // if "re-open", trigger the cancel function
-        cancel_su(rowindex);
-
-      } else{ // for other status changes, just log the change
-        // get uniqueid
-        var uniqueid = getUniqueIDbyRowNumber(rowindex, globvar['UNIQUEID_START_VAL'], globvar['UNIQUEID_START_ROWINDEX']);
-
-        // update log sheet
+    } 
+    else if (colindex==colindex_status+1){ // handle status edit
+      
+      var uniqueid = getUniqueIDbyRowNumber(rowindex, globvar['UNIQUEID_START_VAL'], globvar['UNIQUEID_START_ROWINDEX']);
+      
+      if(newValue=='Re-open'){ // if "re-open", trigger the cancel function as a super-user
+        var args = {uniqueid:uniqueid, userid:globvar['MOD_USERID']};
+        var commandWrapper = new CancelCommand(args);
+        commandWrapper.execute_superUser();
+      } 
+      else { // for other status changes, just log the change
         var sheet_log = spreadsheet.getSheetByName(log_sheetname);
         var row_log = sheet_log.getLastRow();
         sheet_log.getRange(row_log+1,1,1,5).setValues([[new Date(), uniqueid,'admin','statusManualEdit',newValue]]);

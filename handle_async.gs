@@ -5,62 +5,82 @@
 // required to contain
 
 /**
- *  Run a functionName with args, and reply immediately
+ * Async run functionName
  * @param {*} functionName
  * @param {*} args
  */
-function processFunctionSync(functionName, args){
-  var message = GlobalFuncHandle[functionName](args);
-  return contentServerJsonReply(message);
-}
-
-
-/**
- * Async run functionName, and post the results to reply_url, while immediately
- * returning immediateReturnMessage.
- * @param {*} functionName
- * @param {*} args
- * @param {*} reply_url
- * @param {*} immediateReturnMessage
- */
-function processFunctionAsync(functionName, args, reply_url, immediateReturnMessage){
+function processFunctionAsync(cmdName, args){
   // Queue an async reply with the asyncMethod defined in globalVariables (i.e. either a time-based or form-based trigger)
   var asyncMethod = globalVariables().ASYNC_METHOD;
-  GlobalFuncHandle[asyncMethod](functionName, args, reply_url);
-  
-  // Return immediate response to user
-  return contentServerJsonReply(immediateReturnMessage);
+  GlobalFuncHandle[asyncMethod](cmdName, args);
 }
 
 /**
- * Run functionName, and post the results to reply_url. Log the results to the
- * log sheet.
- * @param {*} functionName
+ * Submit request to event form, to allow a delayed response
+ * @param {*} cmdName
  * @param {*} args
- * @param {*} reply_url
  */
-function processAndPostResults(functionName, args, reply_url){
-  var message = GlobalFuncHandle[functionName](args);
-  var return_message = postToSlack(message, reply_url);
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow(
-    [new Date(), args.uniqueid, "admin",'postReply', return_message]);
+function processAsyncWithFormTrigger(cmdName, args) {
+  // construct post request
+  var eventForm = JSON.parse(PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
+  var options = {
+    method:'post',
+    payload:{
+      [eventForm.entry_id.fctName]:cmdName,
+      [eventForm.entry_id.args]:JSON.stringify(args)
+    }
+  };
+  
+  // Post request submission to form. The return value of .getContextText() does not appear to be informative of success of submission.
+  UrlFetchApp.fetch(eventForm.url, options).getContentText(); 
 }
 
+/**
+ * Handle the submissions that originate specifically from the eventForm
+ * @param {*} values
+ */
+function handleEventFormSubmission(values){
+  // extract functionName, args and response_url
+  var [timestamp, cmdName, args_str] = values;
+  var args = JSON.parse(args_str);
+  
+  // call processAndPostResults
+  processAndPostResults(cmdName, args);
+}
+
+/**
+ * Instantiate and execute ConcreteCommand based on cmdName+args, and post the results to args.response_url. Log the results to the
+ * log sheet.
+ * @param {*} cmdName
+ * @param {*} args
+ */
+function processAndPostResults(cmdName, args){
+  try{
+    var commandWrapper = createCommandClassInstance(cmdName, args);
+    var message = commandWrapper.execute(); 
+    slackUserReply (message, args.uniqueid, args.response_url);
+  }
+  catch(errObj){
+    if (errObj instanceof TypeError || errObj instanceof ReferenceError){
+      // if a code error, throw the full error log
+      throw errObj;
+    }
+    slackUserReply (errObj.message, args.uniqueid, args.response_url);
+  }
+}
 
 /**
  * Set up a trigger to run processFunctionAndPostResultsTriggered
  * @param {*} functionName
  * @param {*} args
- * @param {*} reply_url
  */
-function processFunctionAsyncWithTrigger(functionName, args, reply_url) {
+function processFunctionAsyncWithTrigger(cmdName, args) {
   var trigger = ScriptApp.newTrigger("processFunctionAndPostResultsTriggered")
     .timeBased()
     .after(100)
     .create();
 
-  setupTriggerArguments(trigger, [functionName, args, reply_url], false);
+  setupTriggerArguments(trigger, [cmdName, args], false);
 }
 
 
@@ -69,8 +89,8 @@ function processFunctionAsyncWithTrigger(functionName, args, reply_url) {
  * @param {*} event
  */
 function processFunctionAndPostResultsTriggered(event){
-  var [functionName, args, reply_url] = handleTriggered(event.triggerUid);
-  processAndPostResults(functionName, args, reply_url);
+  var [cmdName, args] = handleTriggered(event.triggerUid);
+  processAndPostResults(cmdName, args);
 }
 
 

@@ -12,15 +12,31 @@ class TrackingSheetWrapper {
     this.UNIQUEID_START_ROWINDEX = globvar['UNIQUEID_START_ROWINDEX'];
   }
   
+  makeRowObject(rowArray){
+    // Make a row object from a row array.
+    var row = {};
+    for (var i = 0; i < this.columns.length; i++) {
+      row[this.columns[i]] = rowArray[i].toString();
+    }
+    return row;
+  }
+
+  getAllRows(){
+    // Return all the sheet's rows as an array of row objects. This is much faster than getting the data one row at a time.
+    var rowArray2D = this.sheet.getDataRange().getValues();
+    var rows = [];
+    var myScope = this; // for use of current scope in forEach
+    rowArray2D.forEach(function(rowArray,index){
+      rows[index]=myScope.makeRowObject(rowArray);
+    });
+    return rows;
+  }
+
   getRowByRowNumber(rowNumber){
     // Return a row object based on row number.
     var rowArray = this.sheet.getRange(rowNumber, 1, 1, this.numColumns).getValues();
     rowArray = rowArray[0];  // Shape [1, R] -> [R]
-    var row = {};
-    for (var i = 0; i < this.columns.length; i++) {
-      row[this.columns[i]] = rowArray[i];
-    }
-    return row;
+    return this.makeRowObject(rowArray);
   }
   
   getRowByUniqueID(id){
