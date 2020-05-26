@@ -66,13 +66,15 @@ class Command {
   constructor(args){
     this.args = new CommandArgs(args);
     this.immediateReturnMessage = commandPendingMessage();
+    this.returnMessage = null;
   }
   
   parse(){}
+  
   getSheetData(){}
-  updateSheet(){}
-  formulateUserResponse(){}
-  sendSlackPayloads(){}
+  checkCommandValidity(){}
+  updateState(){}
+  notify(){}
   nextCommand(){
     // Default behaviour is that no further command is executed. 
     // However, some {command,arg} combinations lead to chained commands 
@@ -83,21 +85,68 @@ class Command {
     this.tracking_sheet = new TrackingSheetWrapper();
     this.log_sheet = new LogSheetWrapper(); //do not instantiate these in constructor because they take ~300ms and would compromise immediate response
     this.getSheetData();
-    var message = this.formulateUserResponse();
-    this.updateSheet();
-    this.sendSlackPayloads();
+    this.checkCommandValidity();
+    this.updateState();
+    this.returnMessage = this.notify();
     this.nextCommand();
-    return message;
+    return this.returnMessage;
   }
   
   execute_superUser(){
     this.tracking_sheet = new TrackingSheetWrapper();
     this.log_sheet = new LogSheetWrapper();
     this.getSheetData();
-    this.updateSheet();
-    this.sendSlackPayloads();
+    this.updateState();
+    this.notify();
     this.nextCommand();
   }
+}
+
+
+/**
+ *  Manage a PostRequest command from super user
+ */
+
+class PostRequestCommand extends Command {
+  
+  getSheetData(){
+    this.row = this.tracking_sheet.getRowByUniqueID(this.args.uniqueid);
+  }
+  
+  notify(){
+    
+    // slack channel messenger
+    var out_message_notification = postRequestNotificationMessage();
+    var out_message = postRequestMessage(this.row);
+    var payload =  JSON.stringify({blocks: out_message,
+                                   text: out_message_notification,
+                                   channel: this.row.channelid,
+                                   as_user: true});
+    var return_message = postToSlackChannel(payload, "as_user");
+    
+    // message sending logger
+    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','messageChannel',return_message]);
+  
+    // tracking sheet writer
+    var return_params = JSON.parse(return_message);
+    this.row.slackVolunteerID = '';
+    this.row.slackVolunteerName = '';
+    if (return_params.ok === true){ // message was succesfully posted to channel
+      this.row.slackTS = return_params.ts;
+      this.row.requestStatus = 'Sent';
+    } else{
+      this.row.slackTS = '';
+      this.row.requestStatus = 'FailSend';
+    }
+    this.tracking_sheet.writeRow(this.row);
+    
+    // command logger
+    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','sheetCommand','postRequest',
+                         JSON.stringify({channelid:this.row.channelid,
+                                         slackThreadID:this.row.slackTS})
+                        ]);
+  }
+  
 }
 
 
@@ -117,13 +166,16 @@ class AssignCommand extends Command {
     this.args.parseMentionString();
   }
   
-  formulateUserResponse(){
+  checkCommandValidity(){
     return assignPendingMessage();
   }
   
-  nextCommand(){  
+  updateState(){
     this.args.userid = this.args.mention.userid;
     this.args.username = this.args.mention.username;
+  }
+  
+  nextCommand(){  
     processFunctionAsync('/volunteer', this.args); // todo: clean up string call
   }
 }
@@ -142,30 +194,45 @@ class VolunteerCommand extends Command {
     this.row = this.tracking_sheet.getRowByUniqueID(this.args.uniqueid);
   }
   
-  updateSheet(){
-    this.row.slackVolunteerID = this.args.userid;
-    this.row.slackVolunteerName = this.args.username;
-    this.row.requestStatus = "Assigned";
-    this.tracking_sheet.writeRow(this.row);
-    this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid,'slackCommand','volunteer']);
-  }
-  
-  formulateUserResponse(){
+  checkCommandValidity(){
     checkUniqueIDexists(this.row, this.args);
     checkUniqueIDconsistency(this.row, this.args);
     checkChannelIDconsistency(this.row, this.args);
     checkRowIsVolunteerable(this.row, this.args);
-    return volunteerSuccessMessage(this.row,true);
   }
   
-  sendSlackPayloads(){
+  updateState(){
+    this.row.slackVolunteerID = this.args.userid;
+    this.row.slackVolunteerName = this.args.username;
+    this.row.requestStatus = "Assigned";
+  }
+  
+  notify(){
+    
+    // slack channel messenger
     var out_message = volunteerChannelMessage(this.row);
     var payload = JSON.stringify({
       text: out_message,
       thread_ts: this.row.slackTS,
       channel: this.row.channelid,
     });
-    slackChannelReply(payload,this.row.uniqueid);
+    var return_message = postToSlackChannel(payload);
+    
+    // message sending logger
+    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','messageChannel',return_message]);
+    
+    if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
+      throw new Error(postToSlackChannelErrorMessage());
+    }
+    
+    // tracking sheet writer
+    this.tracking_sheet.writeRow(this.row);
+    
+    // command logger
+    this.log_sheet.appendRow([new Date(), this.row.uniqueid, this.row.slackVolunteerID,'slackCommand','volunteer']);
+    
+    // user return message printer
+    return volunteerSuccessMessage(this.row);
   }
 }
 
@@ -183,48 +250,61 @@ class CancelCommand extends Command {
     this.row = this.tracking_sheet.getRowByUniqueID(this.args.uniqueid);
   }
   
-  updateSheet(){
-    this.slackVolunteerID_old = this.row.slackVolunteerID; // store this for channel response
-    this.row.slackVolunteerID = '';
-    this.row.slackVolunteerName = '';
-    this.row.requestStatus = 'Sent';
-    this.tracking_sheet.writeRow(this.row);
-    this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid,'slackCommand','cancel']);
-  }
-  
-  formulateUserResponse(){
+  checkCommandValidity(){
     checkUniqueIDexists(this.row, this.args);
     checkUniqueIDconsistency(this.row, this.args);
     checkChannelIDconsistency(this.row, this.args);
     checkRowIsCancellable(this.row, this.args);
-    return cancelSuccessMessage(this.row,true);
   }
   
-  sendSlackPayloads(){
-    var out_message = cancelChannelMessage(this.row,this.slackVolunteerID_old)                                                                                                            
+  updateState(){
+    this.slackVolunteerID_old = this.row.slackVolunteerID; // store this for channel messenger in notify()
+    this.row.slackVolunteerID = '';
+    this.row.slackVolunteerName = '';
+    this.row.requestStatus = 'Sent';
+  }
+  
+  notify(){
+    
+    // slack channel messenger
+    var out_message = cancelChannelMessage(this.row,this.slackVolunteerID_old);                                                                                                           
     var payload = JSON.stringify({
     text: out_message,
       thread_ts: this.row.slackTS,
       reply_broadcast: true,
       channel: this.row.channelid});
-    slackChannelReply(payload,this.row.uniqueid);
+    var return_message = postToSlackChannel(payload);
+    
+    // message sending logger
+    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','messageChannel',return_message]);
+    
+    if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
+      throw new Error(postToSlackChannelErrorMessage());
+    }
+    
+    // tracking sheet writer
+    this.tracking_sheet.writeRow(this.row);
+    
+    // command logger
+    this.log_sheet.appendRow([new Date(), this.row.uniqueid, this.row.slackVolunteerID, 'slackCommand','cancel']);
+    
+    // user return message printer
+    return cancelSuccessMessage(this.row,true);
   }
 }
 
 /**
  *  Manage a done modal request from user or moderator
  */
-class DoneSendModalCommand extends Command {
+class DoneSendModalCommand extends Command { //todo: make this an async command so that it can pass back row information in modal
   
   parse(){
     this.args.parseUniqueID();
   }
   
-  formulateUserResponse(){
-    return doneSendModalSuccessMessage(this.args);
-  }
-  
-  sendSlackPayloads(){ // Send post request to Slack views.open API to open a modal for user
+  notify(){
+    
+    // Send post request to Slack views.open API to open a modal for user
     var cmd_metadata = JSON.stringify({
       uniqueid: this.args.uniqueid,
       channelid: this.args.channelid,
@@ -234,7 +314,17 @@ class DoneSendModalCommand extends Command {
     var payload = JSON.stringify({
       trigger_id: this.args.trigger_id,
       view: out_message});
-    slackModalReply(payload, this.args.uniqueid);
+    var return_message = postToSlackModal(payload);
+    
+    // Message sending logger
+    this.log_sheet.appendRow([new Date(), this.args.uniqueid,'admin','messageUserModal',return_message]);
+  
+    if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
+      throw new Error(postToSlackModalErrorMessage(return_message));
+    }
+    
+    // user return message printer
+    return doneSendModalSuccessMessage(this.args);
   }
 }
 
@@ -265,7 +355,7 @@ class DoneCommand extends Command {
     this.row = this.tracking_sheet.getRowByUniqueID(this.args.uniqueid);
   }
   
-  updateSheet(){
+  updateState(){
     if ((this.requestNextStatus === '') || (this.requestNextStatus === 'unsure') || (this.requestNextStatus === 'toClose')){
       this.row.requestStatus = 'ToClose?';
     } else if (this.requestNextStatus === 'keepOpenAssigned'){
@@ -274,25 +364,40 @@ class DoneCommand extends Command {
     this.row.completionCount = +this.row.completionCount +1;
     this.row.completionLastDetails = this.completionLastDetails;
     this.row.completionLastTimestamp = new Date();
-    this.tracking_sheet.writeRow(this.row);
-    this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid,'slackCommand','done', this.completionLastDetails]);
   }
   
-  formulateUserResponse(){
+  checkCommandValidity(){
     checkUniqueIDexists(this.row, this.args);
     checkUniqueIDconsistency(this.row, this.args);
     checkChannelIDconsistency(this.row, this.args);
     checkRowAcceptsDone(this.row, this.args);
-    return doneSuccessMessage(this.row,true);
   }
   
-  sendSlackPayloads(){
+  notify(){
+    
+    // slack channel messenger
     var out_message = doneChannelMessage(this.row);
     var payload = JSON.stringify({
       text: out_message,
       thread_ts: this.row.slackTS,
       channel: this.row.channelid});
-    slackChannelReply(payload,this.row.uniqueid);
+    var return_message = postToSlackChannel(payload);
+    
+    // message sending logger
+    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','messageChannel',return_message]);
+    
+    if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
+      throw new Error(postToSlackChannelErrorMessage());
+    }
+    
+    // tracking sheet writer
+    this.tracking_sheet.writeRow(this.row);
+    
+    // command logger
+    this.log_sheet.appendRow([new Date(), this.row.uniqueid, this.row.slackVolunteerID,'slackCommand','done', this.row.completionLastDetails]);
+    
+    // user return message printer
+    return doneSuccessMessage(this.row,true);
   }
   
   nextCommand(){
@@ -312,7 +417,7 @@ class ListCommand extends Command {
     this.rows = this.tracking_sheet.getAllRows();
   }
   
-  formulateUserResponse(){
+  notify(){
     var message_out = listHeaderMessage('list');
 
     var classScope = this;
@@ -337,7 +442,7 @@ class ListActiveCommand extends Command {
     this.rows = this.tracking_sheet.getAllRows();
   }
   
-  formulateUserResponse(){
+  notify(){
     var message_out = listHeaderMessage('listactive');
 
     var classScope = this;
@@ -362,7 +467,7 @@ class ListAllCommand extends Command {
     this.rows = this.tracking_sheet.getAllRows();
   }
   
-  formulateUserResponse(){
+  notify(){
     var message_out = listHeaderMessage('listall');
 
     var classScope = this;
@@ -386,7 +491,7 @@ class ListMineCommand extends Command {
     this.rows = this.tracking_sheet.getAllRows();
   }
   
-  formulateUserResponse(){
+  notify(){
     var message_out = listHeaderMessage('listmine');
 
     var classScope = this;
@@ -412,7 +517,7 @@ class ListAllMineCommand extends Command {
     this.rows = this.tracking_sheet.getAllRows();
   }
   
-  formulateUserResponse(){
+  notify(){
     var message_out = listHeaderMessage('listallmine');
 
     var classScope = this;

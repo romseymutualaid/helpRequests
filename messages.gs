@@ -1,8 +1,60 @@
-function requestFormatted(row){
+var requestFormatted = function(row){
   return `<${row.slackURL}|request ${row.uniqueid}> (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
 }
 
-function doneModalMessage (uniqueid, userid, cmd_metadata){
+var postRequestNotificationMessage = function(){
+  return 'A resident in your area has a request. Can you help?'; // text to display on mobile app notification
+}
+
+var postRequestMessage = function(row){
+  return JSON.stringify([
+	{
+		"type": "section",
+		"text": {
+			"text": "<!channel> *A resident in your area has a request. Can you help?*\n"+
+          "_Guidelines for volunteers: <https://docs.google.com/document/d/1l9tssHGzP1Zzr4TSaltlXS3x7QSF4PrGihEpBxoGUwM/edit?usp=sharing|deliveries> -"+
+          " <https://docs.google.com/document/d/1TDuns8kLnbc1TCa9MZLz_uaI6CSVqb3xJvG2gc71Dy4/edit?usp=sharing|escalation> - <https://docs.google.com/document/d/1s35O51IEiZMnodyg4wiw_dVwbn7ZvCQkKu6mKsN_gvM|infection control>_",
+			"type": "mrkdwn"
+		},
+		"fields": [
+          {"type": "mrkdwn", "text": "*Requester:*"},
+          {"type": "plain_text", "text": row.requesterName + " ("+ row.requesterAddr +")"},
+
+          {"type": "mrkdwn", "text": "*Contact details:*"},
+          {"type": "mrkdwn", "text": "To volunteer, send `/volunteer "+row.uniqueid+"` in channel."},
+
+          {"type": "mrkdwn", "text": "*Immediate request:*"},
+          {"type": "plain_text", "text": row.requestType + " "},
+
+          {"type": "mrkdwn", "text": "*Date needed:*"},
+          {"type": "plain_text", "text": formatDate(row.requestDate) + " "},
+
+          {"type": "mrkdwn", "text": "*Request additional info:*"},
+          {"type": "plain_text","text": row.requestInfo + " "}
+		]
+	},
+	{
+		"type": "section",
+		"fields": [
+          {"type": "mrkdwn", "text": "*Prospective needs:*"},
+          {"type": "plain_text", "text": row.requesterGeneralNeeds + " "}
+		]
+	},
+    {
+      "type": "divider"
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "_Note: `/volunteer "+row.uniqueid+"` may occasionally fail. If so, please send the command again until you receive contact details_."
+      }
+    }
+  ]); // this message is formatted in such a way that all user-input text is escaped (type: "plain_text"). This is intended to protect against cross-site scripting attacks.
+}
+
+
+var doneModalMessage = function(uniqueid, userid, cmd_metadata){
 
   return JSON.stringify({
 	"type": "modal",
@@ -59,7 +111,7 @@ function doneModalMessage (uniqueid, userid, cmd_metadata){
   });
 }
 
-function volunteerSuccessMessage(row, isFirstMessage) {
+function volunteerSuccessMessage(row, isFirstMessage=true) {
   var mention_requestCoord = globalVariables()['MENTION_REQUESTCOORD'];
   
   var householdMessage = "";
@@ -320,7 +372,12 @@ I couldn't recognise the current status value "${row.requestStatus}" of request 
 Please can you notify a developer and ask ${mention_mod} for assistance?`);
 }
 
-
+var postToSlackScopeUndefinedMessage = function(scope){
+  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  return textToJsonBlocks(
+`error: I tried to post to slack but could not recognise the scope \`${scope}\`.
+Can you please notify a developer?`);
+}
 
 var postToSlackChannelErrorMessage = function(){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];  

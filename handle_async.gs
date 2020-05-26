@@ -58,14 +58,16 @@ function processAndPostResults(cmdName, args){
   try{
     var commandWrapper = createCommandClassInstance(cmdName, args);
     var message = commandWrapper.execute(); 
-    slackUserReply (message, args.uniqueid, args.response_url);
+    var return_message = postToSlackResponseUrl (message, args.uniqueid, args.response_url);
+    commandWrapper.log_sheet.appendRow([new Date(), args.uniqueid, 'admin','messageUser', return_message]);
   }
   catch(errObj){
     if (errObj instanceof TypeError || errObj instanceof ReferenceError){
       // if a code error, throw the full error log
       throw errObj;
     }
-    slackUserReply (errObj.message, args.uniqueid, args.response_url);
+    var return_message = postToSlackResponseUrl (errObj.message, args.uniqueid, args.response_url);
+    commandWrapper.log_sheet.appendRow([new Date(), args.uniqueid, 'admin','messageUser', return_message]);
   }
 }
 

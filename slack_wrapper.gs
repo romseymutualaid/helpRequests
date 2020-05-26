@@ -41,13 +41,14 @@ class SlackEventWrapper {
     this.cmd = null; // Command class instance returned by createCommandClassInstance(this.subtype, args)
   }
 
-  checkAuthenticity(){
-    // fetch validation variables
+  parse(){
+    // Fetch validation variables
     var globvar = globalVariables();
     var teamid_true =  globvar['TEAM_ID'];
     var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request
-
-    // check token
+    var accepted_types = ['view_submission', 'command'];
+    
+    // Check token
     if(!token_true){ // check that token_true has been set in script properties
       throw new Error(slackTokenNotSetInScriptMessage());
     }
@@ -55,27 +56,24 @@ class SlackEventWrapper {
       throw new Error(slackTokenIsIncorrectMessage(this.token));
     }
 
-    // check request originates from our slack workspace
+    // Check request originates from our slack workspace
     if (this.teamid != teamid_true){
       throw new Error(slackWorspaceIsIncorrectMessage());
     }
-  }
-
-  checkSyntax(){
-    // Check syntax of this.type and parse command+args
-
-    var accepted_types = ['view_submission', 'command'];
-    if(accepted_types.indexOf(this.type) < 0){ // if this.type does not match any accepted_types, return error
+    
+    // Check syntax of this.type
+    if(!isVarInArray(this.type,accepted_types)){
       throw new Error(slackEventTypeIsIncorrectMessage(this.type));
     }
     
+    // Parse command+args
     this.cmd.parse();
   }
 
   handle(){
     // Process Command
     
-    if (globalVariables()["SYNC_COMMANDS"].indexOf(this.subtype) != -1){
+    if (isVarInArray(this.subtype,globalVariables()["SYNC_COMMANDS"])){
       // Handle Sync
       var immediateReturnMessage = this.cmd.execute(); 
     } else {
@@ -84,7 +82,7 @@ class SlackEventWrapper {
       processFunctionAsync(this.subtype, this.cmd.args);
     }
     
-    return contentServerJsonReply(immediateReturnMessage);
+    return immediateReturnMessage;
   }
 }
 

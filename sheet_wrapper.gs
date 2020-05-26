@@ -52,7 +52,7 @@ class TrackingSheetWrapper {
     var rowNumber = getRowNumberByUniqueID(row.uniqueid, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX);
     var existingRow = this.getRowByUniqueID(row.uniqueid);
     if (existingRow.uniqueid != row.uniqueid){
-      throw "Attempting to write to row with unmatching uniqueids. id: " + row.uniqueid;
+      throw new Error(uniqueIDlookupIsCorruptedMessage(existingRow, row));
     }
     
     for (var i = 0; i < this.columns.length; i++) {

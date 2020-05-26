@@ -41,15 +41,21 @@ var textToJsonBlocks = function(text, ephemeral=true, type="mrkdwn"){
  * @param {string} url
  * @param {boolean} as_user
  */
-var postToSlack = function(payload, url, as_user=false){
-  if (as_user){
+var postToSlack = function(payload, url, scope="as_bot"){
+  if (scope === "as_user"){
     var access_token = PropertiesService
                       .getScriptProperties()
                       .getProperty('ACCESS_TOKEN_USER');
-  } else {
+  } else if (scope === "as_bot") {
     var access_token = PropertiesService
                       .getScriptProperties()
                       .getProperty('ACCESS_TOKEN');
+  } else {
+    // return error message with same formatting as UrlFetchApp.fetch().getContentText()
+    return JSON.stringify({
+      ok:false,
+      msg:postToSlackScopeUndefinedMessage(scope)
+    });
   }
 
   var options = {
@@ -65,35 +71,19 @@ var postToSlack = function(payload, url, as_user=false){
 }
 
 
-
-var slackUserReply = function(payload, uniqueid, response_url){
-  var return_message = postToSlack(payload, response_url);
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow([new Date(), uniqueid, 'admin','messageUser', return_message]);
-}
-
-var slackChannelReply = function(payload, uniqueid){
-  var globvar = globalVariables();
-  var mention_requestCoord = globvar['MENTION_REQUESTCOORD'];
-  var url = globvar['WEBHOOK_CHATPOSTMESSAGE'];
-  
+var postToSlackResponseUrl = function(payload, uniqueid, url){
   var return_message = postToSlack(payload, url);
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow([new Date(), uniqueid,'admin','messageChannel',return_message]);
-  
-  if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
-    throw new Error(postToSlackChannelErrorMessage());
-  }
+  return return_message;
 }
 
-var slackModalReply = function(payload, uniqueid){
+var postToSlackChannel = function(payload, scope="as_bot"){
+  var url = globalVariables()['WEBHOOK_CHATPOSTMESSAGE'];
+  var return_message = postToSlack(payload, url, scope);
+  return return_message;
+}
+
+var postToSlackModal = function(payload){
   var url = 'https://slack.com/api/views.open';
-  
   var return_message = postToSlack(payload, url);
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow([new Date(), uniqueid,'admin','messageUserModal',return_message]);
-  
-  if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
-    throw new Error(postToSlackModalErrorMessage(return_message));
-  }
+  return return_message;
 }
