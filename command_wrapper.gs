@@ -166,13 +166,13 @@ class AssignCommand extends Command {
     this.args.parseMentionString();
   }
   
-  checkCommandValidity(){
-    return assignPendingMessage();
-  }
-  
   updateState(){
     this.args.userid = this.args.mention.userid;
     this.args.username = this.args.mention.username;
+  }
+  
+  notify(){
+    return assignPendingMessage();
   }
   
   nextCommand(){  
