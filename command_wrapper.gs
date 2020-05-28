@@ -104,6 +104,18 @@ class Command {
 
 
 /**
+ *  Manage a StatusLog command from super user
+ */
+class StatusLogCommand extends Command {
+  notify(){
+    // command logger
+    var newStatus = this.args.more;
+    this.log_sheet.appendRow([new Date(), this.args.uniqueid,'admin','statusManualEdit',newStatus]);
+  }
+}
+
+
+/**
  *  Manage a PostRequest command from super user
  */
 
