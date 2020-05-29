@@ -91,15 +91,6 @@ class Command {
     this.nextCommand();
     return this.returnMessage;
   }
-  
-  execute_superUser(){
-    this.tracking_sheet = new TrackingSheetWrapper();
-    this.log_sheet = new LogSheetWrapper();
-    this.getSheetData();
-    this.updateState();
-    this.notify();
-    this.nextCommand();
-  }
 }
 
 
@@ -241,7 +232,7 @@ class VolunteerCommand extends Command {
     this.tracking_sheet.writeRow(this.row);
     
     // command logger
-    this.log_sheet.appendRow([new Date(), this.row.uniqueid, this.row.slackVolunteerID,'slackCommand','volunteer']);
+    this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid,'slackCommand','volunteer']);
     
     // user return message printer
     return volunteerSuccessMessage(this.row);
@@ -298,7 +289,7 @@ class CancelCommand extends Command {
     this.tracking_sheet.writeRow(this.row);
     
     // command logger
-    this.log_sheet.appendRow([new Date(), this.row.uniqueid, this.row.slackVolunteerID, 'slackCommand','cancel']);
+    this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid, 'slackCommand','cancel']);
     
     // user return message printer
     return cancelSuccessMessage(this.row,true);
@@ -406,7 +397,7 @@ class DoneCommand extends Command {
     this.tracking_sheet.writeRow(this.row);
     
     // command logger
-    this.log_sheet.appendRow([new Date(), this.row.uniqueid, this.row.slackVolunteerID,'slackCommand','done', this.row.completionLastDetails]);
+    this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid,'slackCommand','done', this.row.completionLastDetails]);
     
     // user return message printer
     return doneSuccessMessage(this.row,true);

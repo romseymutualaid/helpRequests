@@ -71,7 +71,7 @@ var postToSlack = function(payload, url, scope="as_bot"){
 }
 
 
-var postToSlackResponseUrl = function(payload, uniqueid, url){
+var postToSlackResponseUrl = function(payload, url){
   var return_message = postToSlack(payload, url);
   return return_message;
 }

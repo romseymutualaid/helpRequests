@@ -118,7 +118,7 @@ class TimedTriggerSheetEventWrapper extends SheetEventWrapper {
   }
   
   notify(msg){
-    var return_message = postToSlackResponseUrl (msg, this.cmd.args.uniqueid, this.cmd.args.response_url);
+    var return_message = postToSlackResponseUrl (msg, this.cmd.args.response_url);
     this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid, 'admin','messageUser', return_message]);
   }
 }
@@ -140,7 +140,7 @@ class CommandFormSubmitSheetEventWrapper extends SheetEventWrapper {
   }
   
   notify(msg){
-    var return_message = postToSlackResponseUrl (msg, this.cmd.args.uniqueid, this.cmd.args.response_url);
+    var return_message = postToSlackResponseUrl (msg, this.cmd.args.response_url);
     this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid, 'admin','messageUser', return_message]);
   }
 }
@@ -161,7 +161,7 @@ class RequestFormSubmitSheetEventWrapper extends SheetEventWrapper {
   }
   
   handle(){
-      this.cmd.execute_superUser();
+      this.cmd.execute();
   }
   
   notify(msg){
@@ -204,9 +204,11 @@ class EditTrackingSheetEventWrapper extends SheetEventWrapper {
   }
   
   handle(){
-    this.cmd.execute_superUser();
+    this.cmd.execute();
   }
   
   notify(msg){
+    // command response logger
+    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,'admin','messageUserContent',msg]);
   }
 }
