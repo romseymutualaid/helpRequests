@@ -102,8 +102,10 @@ function globalVariables(){
 //      ASYNC_METHOD:"processFunctionAsyncWithTrigger", // time-based trigger
       ASYNC_METHOD:"processAsyncWithFormTrigger", // form-based trigger
 
+    // Slack API URLs for message sending
     WEBHOOK_CHATPOSTMESSAGE: 'https://slack.com/api/chat.postMessage',
-    WEBHOOK_CHATPOSTMESSAGE_EPHEMERAL: 'https://slack.com/api/chat.postEphemeral',
+    WEBHOOK_CHATPOSTMODAL: 'https://slack.com/api/views.open',
+    WEBHOOK_CHATPOSTMESSAGE_EPHEMERAL: 'https://slack.com/api/chat.postEphemeral'
   };
   return globvar;
 }

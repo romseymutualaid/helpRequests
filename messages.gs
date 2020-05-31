@@ -372,13 +372,6 @@ I couldn't recognise the current status value "${row.requestStatus}" of request 
 Please can you notify a developer and ask ${mention_mod} for assistance?`);
 }
 
-var postToSlackScopeUndefinedMessage = function(scope){
-  var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
-  return textToJsonBlocks(
-`error: I tried to post to slack but could not recognise the scope \`${scope}\`.
-Can you please notify a developer?`);
-}
-
 var postToSlackChannelErrorMessage = function(){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];  
   return textToJsonBlocks(

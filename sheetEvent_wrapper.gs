@@ -107,7 +107,7 @@ class SheetEventWrapper {
   }
   
   notify(msg){
-    this.displayBehaviour.display(msg);
+    this.displayBehaviour.write(msg);
   }
 }
 

@@ -39,23 +39,16 @@ var textToJsonBlocks = function(text, ephemeral=true, type="mrkdwn"){
  * Post to slack.
  * @param {string} payload
  * @param {string} url
- * @param {boolean} as_user
  */
-var postToSlack = function(payload, url, scope="as_bot"){
-  if (scope === "as_user"){
+var postToSlack = function(payload, url){
+  if (JSON.parse(payload).as_user === true){
     var access_token = PropertiesService
                       .getScriptProperties()
                       .getProperty('ACCESS_TOKEN_USER');
-  } else if (scope === "as_bot") {
+  } else {
     var access_token = PropertiesService
                       .getScriptProperties()
                       .getProperty('ACCESS_TOKEN');
-  } else {
-    // return error message with same formatting as UrlFetchApp.fetch().getContentText()
-    return JSON.stringify({
-      ok:false,
-      msg:postToSlackScopeUndefinedMessage(scope)
-    });
   }
 
   var options = {
@@ -70,32 +63,12 @@ var postToSlack = function(payload, url, scope="as_bot"){
         .getContentText();
 }
 
-
-var postToSlackResponseUrl = function(payload, url){
-  var return_message = postToSlack(payload, url);
-  return return_message;
-}
-
-var postToSlackChannel = function(payload, scope="as_bot"){
-  var url = globalVariables()['WEBHOOK_CHATPOSTMESSAGE'];
-  var return_message = postToSlack(payload, url, scope);
-  return return_message;
-}
-
-var postToSlackModal = function(payload){
-  var url = 'https://slack.com/api/views.open';
-  var return_message = postToSlack(payload, url);
-  return return_message;
-}
-
-
-
 class Display {
   constructor(cmd){
     this.cmd = cmd;
   }
   
-  display(msg){
+  write(msg){
   }
 }
 
@@ -103,14 +76,39 @@ class VoidDisplay extends Display {
 }
 
 class AdminDisplay extends Display {
-  display(msg){
+  write(msg){
     this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,'admin','messageUserContent',msg]);
   }
 }
 
 class UserAsyncDisplay extends Display {
-  display(msg){
-    var response_message = postToSlackResponseUrl (msg, this.cmd.args.response_url);
+  write(msg){
+    var response_message = postToSlack(msg, this.cmd.args.response_url);
     this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid, 'admin','messageUser', response_message]);
+  }
+}
+
+class SlackChannelDisplay extends Display {
+  write(msg){
+    var url = globalVariables()['WEBHOOK_CHATPOSTMESSAGE'];
+    var response_message = postToSlack(msg, url);
+    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,'admin','messageChannel',response_message]);
+    return response_message;
+  }
+}
+
+class SlackModalDisplay extends Display {
+  write(msg){
+    var url = globalVariables()['WEBHOOK_CHATPOSTMODAL'];
+    var response_message = postToSlack(msg, url);
+    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,'admin','messageUserModal',response_message]);
+    return response_message;
+  }
+}
+
+class TrackingSheetDisplay extends Display {
+  write(msg,updateTrackingSheet=true){
+    if (updateTrackingSheet) this.cmd.tracking_sheet.writeRow(this.cmd.row);
+    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,this.cmd.args.userid,msg.type,msg.subtype,msg.additionalInfo]);
   }
 }

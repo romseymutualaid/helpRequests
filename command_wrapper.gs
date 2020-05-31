@@ -105,7 +105,13 @@ class StatusLogCommand extends Command {
   notify(){
     // command logger
     var newStatus = this.args.more;
-    this.log_sheet.appendRow([new Date(), this.args.uniqueid,'admin','statusManualEdit',newStatus]);
+    var messageObj = {
+      type:'sheetCommand',
+      subtype:'statusManualEdit',
+      additionalInfo:newStatus
+    };
+    var trackingSheetDisplay = new TrackingSheetDisplay(this);
+    trackingSheetDisplay.write(messageObj, false);
   }
 }
 
@@ -129,10 +135,8 @@ class PostRequestCommand extends Command {
                                    text: out_message_notification,
                                    channel: this.row.channelid,
                                    as_user: true});
-    var return_message = postToSlackChannel(payload, "as_user");
-    
-    // message sending logger
-    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','messageChannel',return_message]);
+    var channelDisplay = new SlackChannelDisplay(this);
+    var return_message = channelDisplay.write(payload);
   
     // tracking sheet writer
     var return_params = JSON.parse(return_message);
@@ -145,13 +149,14 @@ class PostRequestCommand extends Command {
       this.row.slackTS = '';
       this.row.requestStatus = 'FailSend';
     }
-    this.tracking_sheet.writeRow(this.row);
-    
-    // command logger
-    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','sheetCommand','postRequest',
-                         JSON.stringify({channelid:this.row.channelid,
-                                         slackThreadID:this.row.slackTS})
-                        ]);
+    var messageObj = {
+      type:'sheetCommand',
+      subtype:'postRequest',
+      additionalInfo:JSON.stringify({channelid:this.row.channelid,
+                                     slackThreadID:this.row.slackTS})
+    };
+    var trackingSheetDisplay = new TrackingSheetDisplay(this);
+    trackingSheetDisplay.write(messageObj);
   }
   
 }
@@ -223,20 +228,22 @@ class VolunteerCommand extends Command {
       thread_ts: this.row.slackTS,
       channel: this.row.channelid,
     });
-    var return_message = postToSlackChannel(payload);
+    var channelDisplay = new SlackChannelDisplay(this);
+    var return_message = channelDisplay.write(payload);
     
-    // message sending logger
-    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','messageChannel',return_message]);
-    
-    if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
+    // halt if message was not successfully sent
+    if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
     
     // tracking sheet writer
-    this.tracking_sheet.writeRow(this.row);
-    
-    // command logger
-    this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid,'slackCommand','volunteer']);
+    var messageObj = {
+      type:'slackCommand',
+      subtype:'volunteer',
+      additionalInfo:''
+    };
+    var trackingSheetDisplay = new TrackingSheetDisplay(this);
+    trackingSheetDisplay.write(messageObj);
     
     // user return message printer
     return volunteerSuccessMessage(this.row);
@@ -280,20 +287,22 @@ class CancelCommand extends Command {
       thread_ts: this.row.slackTS,
       reply_broadcast: true,
       channel: this.row.channelid});
-    var return_message = postToSlackChannel(payload);
+    var channelDisplay = new SlackChannelDisplay(this);
+    var return_message = channelDisplay.write(payload);
     
-    // message sending logger
-    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','messageChannel',return_message]);
-    
-    if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
+    // halt if message was not successfully sent
+    if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
     
     // tracking sheet writer
-    this.tracking_sheet.writeRow(this.row);
-    
-    // command logger
-    this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid, 'slackCommand','cancel']);
+    var messageObj = {
+      type:'slackCommand',
+      subtype:'cancel',
+      additionalInfo:''
+    };
+    var trackingSheetDisplay = new TrackingSheetDisplay(this);
+    trackingSheetDisplay.write(messageObj);
     
     // user return message printer
     return cancelSuccessMessage(this.row,true);
@@ -321,12 +330,11 @@ class DoneSendModalCommand extends Command { //todo: make this an async command 
     var payload = JSON.stringify({
       trigger_id: this.args.trigger_id,
       view: out_message});
-    var return_message = postToSlackModal(payload);
-    
-    // Message sending logger
-    this.log_sheet.appendRow([new Date(), this.args.uniqueid,'admin','messageUserModal',return_message]);
+    var modalDisplay = new SlackModalDisplay(this);
+    var return_message = modalDisplay.write(payload);
   
-    if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
+    // halt if message was not successfully sent
+    if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackModalErrorMessage(return_message));
     }
     
@@ -388,20 +396,22 @@ class DoneCommand extends Command {
       text: out_message,
       thread_ts: this.row.slackTS,
       channel: this.row.channelid});
-    var return_message = postToSlackChannel(payload);
+    var channelDisplay = new SlackChannelDisplay(this);
+    var return_message = channelDisplay.write(payload);
     
-    // message sending logger
-    this.log_sheet.appendRow([new Date(), this.row.uniqueid,'admin','messageChannel',return_message]);
-    
+    // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
       throw new Error(postToSlackChannelErrorMessage());
     }
     
     // tracking sheet writer
-    this.tracking_sheet.writeRow(this.row);
-    
-    // command logger
-    this.log_sheet.appendRow([new Date(), this.args.uniqueid, this.args.userid,'slackCommand','done', this.row.completionLastDetails]);
+    var messageObj = {
+      type:'slackCommand',
+      subtype:'done',
+      additionalInfo:this.row.completionLastDetails
+    };
+    var trackingSheetDisplay = new TrackingSheetDisplay(this);
+    trackingSheetDisplay.write(messageObj);
     
     // user return message printer
     return doneSuccessMessage(this.row,true);
@@ -425,6 +435,7 @@ class ListCommand extends Command {
   }
   
   notify(){
+    // user return message printer
     var message_out_header = listHeaderMessage('list');
     
     var message_out_body = this.rows
@@ -452,6 +463,7 @@ class ListActiveCommand extends Command {
   }
   
   notify(){
+    // user return message printer
     var message_out_header = listHeaderMessage('listactive');
     
     var message_out_body = this.rows
@@ -479,7 +491,8 @@ class ListAllCommand extends Command {
     this.rows = this.tracking_sheet.getAllRows();
   }
   
-  notify(){    
+  notify(){
+    // user return message printer    
     var message_out_header = listHeaderMessage('listall');
     
     var message_out_body = this.rows
@@ -507,6 +520,7 @@ class ListMineCommand extends Command {
   }
   
   notify(){
+    // user return message printer
     var message_out_header = listHeaderMessage('listmine');
     
     var message_out_body = this.rows
@@ -535,7 +549,8 @@ class ListAllMineCommand extends Command {
     this.rows = this.tracking_sheet.getAllRows();
   }
   
-  notify(){    
+  notify(){ 
+    // user return message printer
     var message_out_header = listHeaderMessage('listallmine');
     
     var message_out_body = this.rows
