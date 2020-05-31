@@ -15,8 +15,8 @@ function doPost(e) { // catches HTTP POST requests. see https://developers.googl
 }
 
 function doTriggered(e){ // catches all installed triggers. see https://developers.google.com/apps-script/guides/triggers/installable
+  var sheetEvent = createSheetEventClassInstance(e);
   try{
-    var sheetEvent = createSheetEventClassInstance(e);
     var message = sheetEvent.handle();
     sheetEvent.notify(message);
   }

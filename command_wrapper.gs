@@ -66,7 +66,6 @@ class Command {
   constructor(args){
     this.args = new CommandArgs(args);
     this.immediateReturnMessage = commandPendingMessage();
-    this.returnMessage = null;
   }
   
   parse(){}
@@ -87,12 +86,17 @@ class Command {
     this.getSheetData();
     this.checkCommandValidity();
     this.updateState();
-    this.returnMessage = this.notify();
+    var returnMessage = this.notify();
     this.nextCommand();
-    return this.returnMessage;
+    return returnMessage;
   }
 }
 
+/**
+ *  Handler for a "do nothing" command
+ */
+class VoidCommand extends Command {
+}
 
 /**
  *  Manage a StatusLog command from super user
@@ -421,15 +425,17 @@ class ListCommand extends Command {
   }
   
   notify(){
-    var message_out = listHeaderMessage('list');
+    var message_out_header = listHeaderMessage('list');
+    
+    var message_out_body = this.rows
+    .filter(
+      row => isVarInArray(row.requestStatus,['','Sent']) &&
+      row.channelid === this.args.channelid
+      )
+      .map(row => listLineMessage(row))
+      .join('');
 
-    var classScope = this;
-    this.rows.forEach(function(row) { // append...
-      if (isVarInArray(row.requestStatus,['','Sent']) && 
-          row.channelid == classScope.args.channelid) { // ... if empty status and correct channel
-        message_out += listLineMessage(row);
-      }
-    });
+    var message_out = message_out_header + message_out_body;
     
     return textToJsonBlocks(message_out);
   }
@@ -446,15 +452,18 @@ class ListActiveCommand extends Command {
   }
   
   notify(){
-    var message_out = listHeaderMessage('listactive');
+    var message_out_header = listHeaderMessage('listactive');
+    
+    var message_out_body = this.rows
+    .filter(
+      // non-closed status and correct channel
+      row => isVarInArray(row.requestStatus,['','Sent','Assigned','Ongoing']) &&
+      row.channelid === this.args.channelid
+      )
+      .map(row => listLineMessage(row,true,true))
+      .join('');
 
-    var classScope = this;
-    this.rows.forEach(function(row) {
-      if (isVarInArray(row.requestStatus,['','Sent','Assigned','Ongoing']) && 
-          row.channelid == classScope.args.channelid) { // non-closed status and correct channel
-        message_out += listLineMessage(row,true,true);
-      }
-    });
+    var message_out = message_out_header + message_out_body;
     
     return textToJsonBlocks(message_out);
   }
@@ -470,15 +479,18 @@ class ListAllCommand extends Command {
     this.rows = this.tracking_sheet.getAllRows();
   }
   
-  notify(){
-    var message_out = listHeaderMessage('listall');
+  notify(){    
+    var message_out_header = listHeaderMessage('listall');
+    
+    var message_out_body = this.rows
+    .filter(
+      // correct channel
+      row => row.channelid === this.args.channelid
+      )
+      .map(row => listLineMessage(row,true,true))
+      .join('');
 
-    var classScope = this;
-    this.rows.forEach(function(row) {
-      if (row.channelid == classScope.args.channelid) { // correct channel
-        message_out += listLineMessage(row,true,true);
-      }
-    });
+    var message_out = message_out_header + message_out_body;
     
     return textToJsonBlocks(message_out);
   }
@@ -495,17 +507,20 @@ class ListMineCommand extends Command {
   }
   
   notify(){
-    var message_out = listHeaderMessage('listmine');
-
-    var classScope = this;
-    this.rows.forEach(function(row) {
-      if (isVarInArray(row.requestStatus,['Assigned','Ongoing']) && 
-          row.slackVolunteerID == classScope.args.userid && 
-          row.channelid == classScope.args.channelid) { // non-closed status, belongs to user and correct channel
-        message_out += listLineMessage(row,false,false);
-      }
-    });
+    var message_out_header = listHeaderMessage('listmine');
     
+    var message_out_body = this.rows
+    .filter(
+      // non-closed status, belongs to user and correct channel
+      row => isVarInArray(row.requestStatus,['Assigned','Ongoing']) &&
+      row.slackVolunteerID === this.args.userid &&
+      row.channelid === this.args.channelid
+      )
+      .map(row => listLineMessage(row,false,false))
+      .join('');
+
+    var message_out = message_out_header + message_out_body;
+
     return textToJsonBlocks(message_out);
   }
 }
@@ -520,16 +535,19 @@ class ListAllMineCommand extends Command {
     this.rows = this.tracking_sheet.getAllRows();
   }
   
-  notify(){
-    var message_out = listHeaderMessage('listallmine');
+  notify(){    
+    var message_out_header = listHeaderMessage('listallmine');
+    
+    var message_out_body = this.rows
+    .filter(
+      //  belongs to user and correct channel
+      row => row.slackVolunteerID === this.args.userid &&
+      row.channelid === this.args.channelid
+      )
+      .map(row => listLineMessage(row,true,false))
+      .join('');
 
-    var classScope = this;
-    this.rows.forEach(function(row) {
-      if (row.slackVolunteerID == classScope.args.userid && 
-          row.channelid == classScope.args.channelid) { //  belongs to user and correct channel
-        message_out += listLineMessage(row,true,false);
-      }
-    });
+    var message_out = message_out_header + message_out_body;
     
     return textToJsonBlocks(message_out);
   }

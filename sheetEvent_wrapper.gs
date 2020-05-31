@@ -82,24 +82,36 @@ var createEditSheetEventClassInstance = function(e){
 
 class SheetEventWrapper {
   constructor(){
+    // class template
+
     this.subtype=null; // describes the lower level type of event (slash command name, interactive message subtype, ...)
 
     var args={
+      channelid:null, // channel_id that event originates from
       userid:null, // user_id from whom the event originates
+      username:null, // (optional) user_name associated to this.userid
+      response_url:null, // POST url to provide delayed response to user
+      trigger_id:null, // needed to generate interactive messages in response to event
       uniqueid:null, // (optional) help request number
+      mention:{str:null, userid:null, username:null}, // (optional) markdown-formatted mention name
       more:null // (optional) space for extra arguments
     };
     
-    this.cmd = null; // Command class instance returned by createCommandClassInstance(this.subtype, args)
+    this.cmd = new VoidCommand(args); // Command class instance returned by createCommandClassInstance(this.subtype, args)
+    
+    this.displayBehaviour = new VoidDisplay(this.cmd);
+  }
+  
+  handle(){
+    return this.cmd.execute();
+  }
+  
+  notify(msg){
+    this.displayBehaviour.display(msg);
   }
 }
 
 class IgnoreSheetEventWrapper extends SheetEventWrapper {
-  handle(){
-  }
-  
-  notify(){
-  }
 }
 
 class TimedTriggerSheetEventWrapper extends SheetEventWrapper {
@@ -110,11 +122,6 @@ class TimedTriggerSheetEventWrapper extends SheetEventWrapper {
     
     this.subtype = cmdName;
     this.cmd = createCommandClassInstance(this.subtype, args);
-  }
-  
-  handle(){
-    var message = this.cmd.execute();
-    return message;
   }
   
   notify(msg){
@@ -132,16 +139,8 @@ class CommandFormSubmitSheetEventWrapper extends SheetEventWrapper {
     
     this.subtype = cmdName;
     this.cmd = createCommandClassInstance(this.subtype, args);
-  }
-  
-  handle(){
-    var message = this.cmd.execute();
-    return message;
-  }
-  
-  notify(msg){
-    var return_message = postToSlackResponseUrl (msg, this.cmd.args.response_url);
-    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid, 'admin','messageUser', return_message]);
+    
+    this.displayBehaviour = new UserAsyncDisplay(this.cmd);
   }
 }
 
@@ -158,13 +157,8 @@ class RequestFormSubmitSheetEventWrapper extends SheetEventWrapper {
     args.userid = globvar['MOD_USERID'];
     
     this.cmd = new PostRequestCommand(args);
-  }
-  
-  handle(){
-      this.cmd.execute();
-  }
-  
-  notify(msg){
+    
+    this.displayBehaviour = new AdminDisplay(this.cmd);
   }
 }
 
@@ -201,14 +195,7 @@ class EditTrackingSheetEventWrapper extends SheetEventWrapper {
     else{
       return new IgnoreSheetEventWrapper();
     }
-  }
-  
-  handle(){
-    this.cmd.execute();
-  }
-  
-  notify(msg){
-    // command response logger
-    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,'admin','messageUserContent',msg]);
+    
+    this.displayBehaviour = new AdminDisplay(this.cmd);
   }
 }

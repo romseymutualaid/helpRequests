@@ -87,3 +87,30 @@ var postToSlackModal = function(payload){
   var return_message = postToSlack(payload, url);
   return return_message;
 }
+
+
+
+class Display {
+  constructor(cmd){
+    this.cmd = cmd;
+  }
+  
+  display(msg){
+  }
+}
+
+class VoidDisplay extends Display {
+}
+
+class AdminDisplay extends Display {
+  display(msg){
+    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,'admin','messageUserContent',msg]);
+  }
+}
+
+class UserAsyncDisplay extends Display {
+  display(msg){
+    var response_message = postToSlackResponseUrl (msg, this.cmd.args.response_url);
+    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid, 'admin','messageUser', response_message]);
+  }
+}
