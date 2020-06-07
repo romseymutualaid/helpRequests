@@ -122,11 +122,8 @@ class TimedTriggerSheetEventWrapper extends SheetEventWrapper {
     
     this.subtype = cmdName;
     this.cmd = createCommandClassInstance(this.subtype, args);
-  }
-  
-  notify(msg){
-    var return_message = postToSlackResponseUrl (msg, this.cmd.args.response_url);
-    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid, 'admin','messageUser', return_message]);
+    
+    this.SlackMessengerBehaviour = new SlackUserAsyncMessenger(this.cmd);
   }
 }
 
