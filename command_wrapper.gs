@@ -66,6 +66,13 @@ class Command {
   constructor(args){
     this.args = new CommandArgs(args);
     this.immediateReturnMessage = commandPendingMessage();
+    this.loggerMessage={
+      uniqueid:this.args.uniqueid,
+      userid:this.args.userid,
+      type:'command',
+      subtype:'',
+      additionalInfo:''
+    };
   }
   
   parse(){}
@@ -102,16 +109,14 @@ class VoidCommand extends Command {
  *  Manage a StatusLog command from super user
  */
 class StatusLogCommand extends Command {
+  constructor(args){
+    super(args);
+    this.loggerMessage.subtype='statusManualEdit';
+    this.loggerMessage.additionalInfo=this.args.more;
+  }
+  
   notify(){
-    // command logger
-    var newStatus = this.args.more;
-    var messageObj = {
-      type:'sheetCommand',
-      subtype:'statusManualEdit',
-      additionalInfo:newStatus
-    };
-    var trackingSheetDisplay = new TrackingSheetDisplay(this);
-    trackingSheetDisplay.write(messageObj, false);
+    this.log_sheet.appendFormattedRow(this.loggerMessage);
   }
 }
 
@@ -121,6 +126,10 @@ class StatusLogCommand extends Command {
  */
 
 class PostRequestCommand extends Command {
+  constructor(args){
+    super(args);
+    this.loggerMessage.subtype='postRequest';
+  }
   
   getSheetData(){
     this.row = this.tracking_sheet.getRowByUniqueID(this.args.uniqueid);
@@ -135,8 +144,8 @@ class PostRequestCommand extends Command {
                                    text: out_message_notification,
                                    channel: this.row.channelid,
                                    as_user: true});
-    var channelDisplay = new SlackChannelDisplay(this);
-    var return_message = channelDisplay.write(payload);
+    var channelMessenger = new SlackChannelMessenger(this);
+    var return_message = channelMessenger.send(payload);
   
     // tracking sheet writer
     var return_params = JSON.parse(return_message);
@@ -145,18 +154,17 @@ class PostRequestCommand extends Command {
     if (return_params.ok === true){ // message was succesfully posted to channel
       this.row.slackTS = return_params.ts;
       this.row.requestStatus = 'Sent';
+      
+      this.loggerMessage.additionalInfo = JSON.stringify({
+        channelid:this.row.channelid,
+        slackThreadID:this.row.slackTS
+      });
+      this.log_sheet.appendFormattedRow(this.loggerMessage);
     } else{
       this.row.slackTS = '';
       this.row.requestStatus = 'FailSend';
     }
-    var messageObj = {
-      type:'sheetCommand',
-      subtype:'postRequest',
-      additionalInfo:JSON.stringify({channelid:this.row.channelid,
-                                     slackThreadID:this.row.slackTS})
-    };
-    var trackingSheetDisplay = new TrackingSheetDisplay(this);
-    trackingSheetDisplay.write(messageObj);
+    this.tracking_sheet.writeRow(this.row);
   }
   
 }
@@ -197,6 +205,10 @@ class AssignCommand extends Command {
  *  Manage a volunteering command from user
  */
 class VolunteerCommand extends Command {
+  constructor(args){
+    super(args);
+    this.loggerMessage.subtype='volunteer';
+  }
   
   parse(){
     this.args.parseUniqueID();
@@ -228,8 +240,8 @@ class VolunteerCommand extends Command {
       thread_ts: this.row.slackTS,
       channel: this.row.channelid,
     });
-    var channelDisplay = new SlackChannelDisplay(this);
-    var return_message = channelDisplay.write(payload);
+    var channelMessenger = new SlackChannelMessenger(this);
+    var return_message = channelMessenger.send(payload);
     
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
@@ -237,13 +249,8 @@ class VolunteerCommand extends Command {
     }
     
     // tracking sheet writer
-    var messageObj = {
-      type:'slackCommand',
-      subtype:'volunteer',
-      additionalInfo:''
-    };
-    var trackingSheetDisplay = new TrackingSheetDisplay(this);
-    trackingSheetDisplay.write(messageObj);
+    this.tracking_sheet.writeRow(this.row);
+    this.log_sheet.appendFormattedRow(this.loggerMessage);
     
     // user return message printer
     return volunteerSuccessMessage(this.row);
@@ -255,6 +262,10 @@ class VolunteerCommand extends Command {
  *  Manage a cancel command from user or moderator
  */
 class CancelCommand extends Command {
+  constructor(args){
+    super(args);
+    this.loggerMessage.subtype='cancel';
+  }
   
   parse(){
     this.args.parseUniqueID();
@@ -287,8 +298,8 @@ class CancelCommand extends Command {
       thread_ts: this.row.slackTS,
       reply_broadcast: true,
       channel: this.row.channelid});
-    var channelDisplay = new SlackChannelDisplay(this);
-    var return_message = channelDisplay.write(payload);
+    var channelMessenger = new SlackChannelMessenger(this);
+    var return_message = channelMessenger.send(payload);
     
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
@@ -296,13 +307,8 @@ class CancelCommand extends Command {
     }
     
     // tracking sheet writer
-    var messageObj = {
-      type:'slackCommand',
-      subtype:'cancel',
-      additionalInfo:''
-    };
-    var trackingSheetDisplay = new TrackingSheetDisplay(this);
-    trackingSheetDisplay.write(messageObj);
+    this.tracking_sheet.writeRow(this.row);
+    this.log_sheet.appendFormattedRow(this.loggerMessage);
     
     // user return message printer
     return cancelSuccessMessage(this.row,true);
@@ -330,8 +336,8 @@ class DoneSendModalCommand extends Command { //todo: make this an async command 
     var payload = JSON.stringify({
       trigger_id: this.args.trigger_id,
       view: out_message});
-    var modalDisplay = new SlackModalDisplay(this);
-    var return_message = modalDisplay.write(payload);
+    var modalMessenger = new SlackModalMessenger(this);
+    var return_message = modalMessenger.send(payload);
   
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
@@ -352,6 +358,7 @@ class DoneCommand extends Command {
     super(args);
     
     this.immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
+    this.loggerMessage.subtype='done';
     
     // done modal responses
     var modalResponseVals = args.more;
@@ -396,8 +403,8 @@ class DoneCommand extends Command {
       text: out_message,
       thread_ts: this.row.slackTS,
       channel: this.row.channelid});
-    var channelDisplay = new SlackChannelDisplay(this);
-    var return_message = channelDisplay.write(payload);
+    var channelMessenger = new SlackChannelMessenger(this);
+    var return_message = channelMessenger.send(payload);
     
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
@@ -405,13 +412,9 @@ class DoneCommand extends Command {
     }
     
     // tracking sheet writer
-    var messageObj = {
-      type:'slackCommand',
-      subtype:'done',
-      additionalInfo:this.row.completionLastDetails
-    };
-    var trackingSheetDisplay = new TrackingSheetDisplay(this);
-    trackingSheetDisplay.write(messageObj);
+    this.loggerMessage.additionalInfo = this.row.completionLastDetails;
+    this.tracking_sheet.writeRow(this.row);
+    this.log_sheet.appendFormattedRow(this.loggerMessage);
     
     // user return message printer
     return doneSuccessMessage(this.row,true);

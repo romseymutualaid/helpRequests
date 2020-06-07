@@ -82,5 +82,14 @@ class LogSheetWrapper {
     var row_log = this.sheet.getLastRow();
     this.sheet.getRange(row_log+1,1,1, row.length).setValues([row]);
   }
+  
+  appendFormattedRow(msg){
+    var row = this.makeFormattedRow(msg);
+    this.sheet.appendRow(row);
+  }
+  
+  makeFormattedRow(msg){
+    return [new Date(), msg.uniqueid, msg.userid, msg.type, msg.subtype, msg.additionalInfo];
+  }
 }
 

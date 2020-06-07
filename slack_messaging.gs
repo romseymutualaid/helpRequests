@@ -63,52 +63,53 @@ var postToSlack = function(payload, url){
         .getContentText();
 }
 
-class Display {
+class SlackMessenger {
   constructor(cmd){
     this.cmd = cmd;
+    this.url = null;
+    this.loggerMessage={
+      uniqueid:this.cmd.args.uniqueid,
+      userid:'admin',
+      type:'slackResponse',
+      subtype:'',
+      additionalInfo:''
+    };
   }
   
-  write(msg){
+  send(msg){
+    var return_message = postToSlack(msg, this.url);
+    this.loggerMessage.additionalInfo = return_message;
+    this.cmd.log_sheet.appendFormattedRow(this.loggerMessage);
+    return return_message;
   }
 }
 
-class VoidDisplay extends Display {
-}
-
-class AdminDisplay extends Display {
-  write(msg){
-    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,'admin','messageUserContent',msg]);
+class VoidMessenger extends SlackMessenger {
+  send(msg){
   }
 }
 
-class UserAsyncDisplay extends Display {
-  write(msg){
-    var response_message = postToSlack(msg, this.cmd.args.response_url);
-    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid, 'admin','messageUser', response_message]);
+class SlackUserAsyncMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.url = this.cmd.args.response_url;
+    this.loggerMessage.subtype='userAsync';
   }
 }
 
-class SlackChannelDisplay extends Display {
-  write(msg){
-    var url = globalVariables()['WEBHOOK_CHATPOSTMESSAGE'];
-    var response_message = postToSlack(msg, url);
-    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,'admin','messageChannel',response_message]);
-    return response_message;
+class SlackChannelMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.url = globalVariables()['WEBHOOK_CHATPOSTMESSAGE'];
+    this.loggerMessage.subtype='channel';
   }
 }
 
-class SlackModalDisplay extends Display {
-  write(msg){
-    var url = globalVariables()['WEBHOOK_CHATPOSTMODAL'];
-    var response_message = postToSlack(msg, url);
-    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,'admin','messageUserModal',response_message]);
-    return response_message;
+class SlackModalMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.url = globalVariables()['WEBHOOK_CHATPOSTMODAL'];
+    this.loggerMessage.subtype='userModal';
   }
 }
 
-class TrackingSheetDisplay extends Display {
-  write(msg,updateTrackingSheet=true){
-    if (updateTrackingSheet) this.cmd.tracking_sheet.writeRow(this.cmd.row);
-    this.cmd.log_sheet.appendRow([new Date(), this.cmd.args.uniqueid,this.cmd.args.userid,msg.type,msg.subtype,msg.additionalInfo]);
-  }
-}

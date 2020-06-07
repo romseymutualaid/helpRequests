@@ -99,7 +99,7 @@ class SheetEventWrapper {
     
     this.cmd = new VoidCommand(args); // Command class instance returned by createCommandClassInstance(this.subtype, args)
     
-    this.displayBehaviour = new VoidDisplay(this.cmd);
+    this.SlackMessengerBehaviour = new VoidMessenger(this.cmd);
   }
   
   handle(){
@@ -107,7 +107,7 @@ class SheetEventWrapper {
   }
   
   notify(msg){
-    this.displayBehaviour.write(msg);
+    this.SlackMessengerBehaviour.send(msg);
   }
 }
 
@@ -140,7 +140,7 @@ class CommandFormSubmitSheetEventWrapper extends SheetEventWrapper {
     this.subtype = cmdName;
     this.cmd = createCommandClassInstance(this.subtype, args);
     
-    this.displayBehaviour = new UserAsyncDisplay(this.cmd);
+    this.SlackMessengerBehaviour = new SlackUserAsyncMessenger(this.cmd);
   }
 }
 
@@ -157,8 +157,6 @@ class RequestFormSubmitSheetEventWrapper extends SheetEventWrapper {
     args.userid = globvar['MOD_USERID'];
     
     this.cmd = new PostRequestCommand(args);
-    
-    this.displayBehaviour = new AdminDisplay(this.cmd);
   }
 }
 
@@ -195,7 +193,5 @@ class EditTrackingSheetEventWrapper extends SheetEventWrapper {
     else{
       return new IgnoreSheetEventWrapper();
     }
-    
-    this.displayBehaviour = new AdminDisplay(this.cmd);
   }
 }
