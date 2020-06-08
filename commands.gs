@@ -160,12 +160,7 @@ class PostRequestCommand extends Command {
   notify(){
     
     // slack channel messenger
-    var out_message_notification = postRequestNotificationMessage();
-    var out_message = postRequestMessage(this.row);
-    var payload =  JSON.stringify({blocks: out_message,
-                                   text: out_message_notification,
-                                   channel: this.row.channelid,
-                                   as_user: true});
+    var payload = postRequestMessage(this.row);
     var channelMessenger = new SlackChannelMessenger(this);
     var return_message = channelMessenger.send(payload);
   
@@ -256,12 +251,7 @@ class VolunteerCommand extends Command {
   notify(){
     
     // slack channel messenger
-    var out_message = volunteerChannelMessage(this.row);
-    var payload = JSON.stringify({
-      text: out_message,
-      thread_ts: this.row.slackTS,
-      channel: this.row.channelid,
-    });
+    var payload = volunteerChannelMessage(this.row);
     var channelMessenger = new SlackChannelMessenger(this);
     var return_message = channelMessenger.send(payload);
     
@@ -314,12 +304,7 @@ class CancelCommand extends Command {
   notify(){
     
     // slack channel messenger
-    var out_message = cancelChannelMessage(this.row,this.slackVolunteerID_old);                                                                                                           
-    var payload = JSON.stringify({
-    text: out_message,
-      thread_ts: this.row.slackTS,
-      reply_broadcast: true,
-      channel: this.row.channelid});
+    var payload = cancelChannelMessage(this.row,this.slackVolunteerID_old);                                                                                                           
     var channelMessenger = new SlackChannelMessenger(this);
     var return_message = channelMessenger.send(payload);
     
@@ -349,15 +334,7 @@ class DoneSendModalCommand extends Command { //todo: make this an async command 
   notify(){
     
     // Send post request to Slack views.open API to open a modal for user
-    var cmd_metadata = JSON.stringify({
-      uniqueid: this.args.uniqueid,
-      channelid: this.args.channelid,
-      response_url: this.args.response_url
-    }); // data passed as metadata in modal, to follow up on command request once modal user submission is received
-    var out_message = doneModalMessage(this.args.uniqueid, this.args.userid, cmd_metadata);
-    var payload = JSON.stringify({
-      trigger_id: this.args.trigger_id,
-      view: out_message});
+    var payload = doneModalMessage(this.args);
     var modalMessenger = new SlackModalMessenger(this);
     var return_message = modalMessenger.send(payload);
   
@@ -420,11 +397,7 @@ class DoneCommand extends Command {
   notify(){
     
     // slack channel messenger
-    var out_message = doneChannelMessage(this.row);
-    var payload = JSON.stringify({
-      text: out_message,
-      thread_ts: this.row.slackTS,
-      channel: this.row.channelid});
+    var payload = doneChannelMessage(this.row);
     var channelMessenger = new SlackChannelMessenger(this);
     var return_message = channelMessenger.send(payload);
     

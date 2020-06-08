@@ -4,12 +4,10 @@ var requestFormatted = function(row){
   return `<${row.slackURL}|request ${row.uniqueid}> (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
 }
 
-var postRequestNotificationMessage = function(){
-  return 'A resident in your area has a request. Can you help?'; // text to display on mobile app notification
-}
-
-var postRequestMessage = function(row){
-  return JSON.stringify([
+var postRequestMessage = function(row){  
+  var text = 'A resident in your area has a request. Can you help?'; // text to display on mobile app notification
+  
+  var blocks = JSON.stringify([
 	{
 		"type": "section",
 		"text": {
@@ -53,12 +51,25 @@ var postRequestMessage = function(row){
       }
     }
   ]); // this message is formatted in such a way that all user-input text is escaped (type: "plain_text"). This is intended to protect against cross-site scripting attacks.
+  
+  return JSON.stringify({
+    blocks: blocks,
+    text: text,
+    channel: row.channelid,
+    as_user: true
+  });
 }
 
 
-var doneModalMessage = function(uniqueid, userid, cmd_metadata){
+var doneModalMessage = function(args){
 
-  return JSON.stringify({
+  var cmd_metadata = JSON.stringify({
+    uniqueid: args.uniqueid,
+    channelid: args.channelid,
+    response_url: args.response_url
+  }); // data passed as metadata in modal, to follow up on command request once modal user submission is received
+  
+  var view = JSON.stringify({
 	"type": "modal",
 	"title": {"type": "plain_text","text": "How did it go?"},
     "callback_id": "done_modal",
@@ -70,7 +81,7 @@ var doneModalMessage = function(uniqueid, userid, cmd_metadata){
           "type": "section",
           "text": {
             "type": "mrkdwn",
-            "text": ":wave: Hi <@"+userid+">,\n\nThanks for letting me know you have provided help for request number "+uniqueid+". The on-duty request coordinator has some questions, would you mind taking a few seconds to fill them in?"
+            "text": ":wave: Hi <@"+args.userid+">,\n\nThanks for letting me know you have provided help for request number "+uniqueid+". The on-duty request coordinator has some questions, would you mind taking a few seconds to fill them in?"
           }
 		},
 		{
@@ -110,6 +121,11 @@ var doneModalMessage = function(uniqueid, userid, cmd_metadata){
           "element": {"type": "plain_text_input","action_id":"completionLastDetailsVal","multiline": true},
           "optional": true
 		}]
+  });
+  
+  return JSON.stringify({
+    trigger_id: args.trigger_id,
+    view: view
   });
 }
 
@@ -201,15 +217,31 @@ var assignPendingMessage = function(){
 }
 
 var volunteerChannelMessage = function(row){
-  return `<@${row.slackVolunteerID}> has volunteered. :tada:`;
+  var text = `<@${row.slackVolunteerID}> has volunteered. :tada:`;
+  return JSON.stringify({
+    text: text,
+    thread_ts: row.slackTS,
+    channel: row.channelid,
+  });
 }
 
 var cancelChannelMessage = function(row, oldVolunteerUserID){
-  return `<!channel> <@${oldVolunteerUserID}> is no longer available for ${requestFormatted(row)}. Can anyone else help? Type \`/volunteer ${row.uniqueid} \``;
+  var text = `<!channel> <@${oldVolunteerUserID}> is no longer available for ${requestFormatted(row)}. Can anyone else help? Type \`/volunteer ${row.uniqueid} \``;
+  return JSON.stringify({
+    text: text,
+    thread_ts: row.slackTS,
+    channel: row.channelid,
+    reply_broadcast: true
+  });
 }
 
 var doneChannelMessage = function(row){
-  return `Thanks for helping out <@${row.slackVolunteerID}>! :nerd_face:`;
+  var text = `Thanks for helping out <@${row.slackVolunteerID}>! :nerd_face:`;
+  return JSON.stringify({
+    text: text,
+    thread_ts: row.slackTS,
+    channel: row.channelid
+  });
 }
 
 var listLineMessage = function(row, printStatus=false, printVolunteer=false) {
