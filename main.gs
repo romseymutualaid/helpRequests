@@ -1,4 +1,12 @@
-function doPost(e) { // catches HTTP POST requests. see https://developers.google.com/apps-script/guides/web
+// All events are caught here. 
+// Controller classes (slackEvent, sheetEvent) route the event to an appropriate model (Command subclass)
+// and return message back to user.
+// See supported events in {sheetEvent.gs, slackEvent.gs}. 
+// See command models in commands.gs.
+// See user responses in slack_messaging.gs.
+
+
+function doPost(e) { // catch HTTP POST events. see https://developers.google.com/apps-script/guides/web
   try{
     var slackEvent = createSlackEventClassInstance(e);
     slackEvent.parse();
@@ -14,7 +22,7 @@ function doPost(e) { // catches HTTP POST requests. see https://developers.googl
   }
 }
 
-function doTriggered(e){ // catches all installed triggers. see https://developers.google.com/apps-script/guides/triggers/installable
+function doTriggered(e){ // catch all Installed Trigger events. see https://developers.google.com/apps-script/guides/triggers/installable
   var sheetEvent = createSheetEventClassInstance(e);
   try{
     var message = sheetEvent.handle();

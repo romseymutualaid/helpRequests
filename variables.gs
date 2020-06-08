@@ -1,4 +1,4 @@
-//// all global variable declarations are made here
+// All custom global variable declarations are made here.
 
 var GlobalFuncHandle = this; // this is used to call functions by name (i.e. GlobalFuncHandle[funcName]();)
 
@@ -99,7 +99,7 @@ function globalVariables(){
     ],
     
       // Which method should be used for delayed reponses?
-//      ASYNC_METHOD:"processFunctionAsyncWithTrigger", // time-based trigger
+//      ASYNC_METHOD:"processAsyncWithTimeTrigger", // time-based trigger
       ASYNC_METHOD:"processAsyncWithFormTrigger", // form-based trigger
 
     // Slack API URLs for message sending

@@ -12,6 +12,37 @@ function getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROW
   return(row);
 }
 
+//****************************************
+// slack formatting functions
+// For more slack formating, see:
+// https://api.slack.com/tools/block-kit-builder
+//****************************************
+
+/**
+ * Create a json string in slack block format for text.
+ * @param {string} text
+ * @param {boolean} ephemeral
+ * @param {string} type
+ */
+var textToJsonBlocks = function(text, ephemeral=true, type="mrkdwn"){
+  var blocks = {
+    "blocks": [
+      {
+        "type": "section",
+        "text": {
+          "text": text,
+          "type": type,
+        }
+      }
+    ],
+  };
+
+  if (ephemeral){
+    blocks["response_type"] = "ephemeral";
+  }
+
+  return JSON.stringify(blocks);
+}
 
 //****************************************
 // string functions

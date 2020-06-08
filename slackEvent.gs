@@ -1,5 +1,20 @@
+// Unpack and process slack event objects.
+//
+// Events are routed to a specific SlackEventController subclass.
+// The SlackEventController subclass has a Command model behaviour that it calls
+// synchronously (.execute() method) or asynchronously (handle_async.gs).
+//
+// Slack events currently supported:
+// - slash commands (/volunteer, /cancel, etc.)
+// - interactive messages (modals)
+
+
+/*** CONSTRUCTORS ***/
+
 /**
  *  Return the appropriate SlackEvent subclass instance based on the specified event object e.
+ *  For details on slack events see:
+ *  https://api.slack.com/interactivity/
  * @param {*} e
  */
 var createSlackEventClassInstance = function(e) {
@@ -9,16 +24,19 @@ var createSlackEventClassInstance = function(e) {
   // build the appropriate object depending on event type
   var payload = par.payload;
   if (payload){ // this is a slack interactive component event
-    return new SlackInteractiveMessageEvent(JSON.parse(payload));
+    return new SlackInteractiveMessageEventController(JSON.parse(payload));
   } else{ // this is a slack slash command event
-    return new SlackSlashCommandEvent(par);
+    return new SlackSlashCommandEventController(par);
   }
 }
 
-class SlackEventWrapper {
-  // Wrapper for slack doPost events
 
-  constructor(){
+/*** LOGIC ***/
+
+class SlackEventController {
+  // Controller for slack doPost events
+
+  constructor(par){
     // class template
 
     this.token=null; // slack app verification token string
@@ -87,7 +105,7 @@ class SlackEventWrapper {
 }
 
 
-class SlackInteractiveMessageEvent extends SlackEventWrapper {
+class SlackInteractiveMessageEventController extends SlackEventController {
   constructor(par){
     super();
     this.token = par.token;
@@ -110,7 +128,7 @@ class SlackInteractiveMessageEvent extends SlackEventWrapper {
   }
 }
 
-class SlackSlashCommandEvent extends SlackEventWrapper {
+class SlackSlashCommandEventController extends SlackEventController {
   constructor(par){
     super();
     this.token = par.token;

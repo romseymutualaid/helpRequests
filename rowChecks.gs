@@ -1,3 +1,5 @@
+// Validation logic for ConcreteCommands (see commands.gs)
+
 var checkUniqueIDexists = function(row, args) {
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   

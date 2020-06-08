@@ -1,16 +1,25 @@
+// Controllers for unpacking and processing sheet event objects.
+//
+// Events are routed to a specific SheetEventController subclass.
+// The SheetEventController subclass has a Command model behaviour
+// and a User Notify behaviour that it calls synchronously.
+//
+// Sheet events currently supported:
+// - google form submission events (asyncCommand-form or helpRequest-form)
+// - time-based triggered events (asyncCommand-timed)
+// - google sheet manual edit events (tracking_sheet channel/status columns)
+
+
+/*** CONSTRUCTORS ***/
+
 /**
- *  Return the appropriate SheetEvent subclass instance based on the specified event object e.
+ *  Return the appropriate SheetEventController subclass instance based on the specified event object e.
  *  For details on google apps script trigger and event types see:
  *  https://developers.google.com/apps-script/guides/triggers/events 
  *  https://developers.google.com/apps-script/reference/script/trigger
  * @param {*} e
  */
-var createSheetEventClassInstance = function(e) {
-  // currently, this function handles:
-  // - form submission events (asyncCommand form or helpRequest form)
-  // - time-based triggered events (asyncCommand alternative solution)
-  // - tracking sheet manual edit events (to channel or status fields)
-  
+var createSheetEventClassInstance = function(e) {  
   // get trigger EventType
   var triggers = ScriptApp.getProjectTriggers();
   for (var i = 0; i < triggers.length; i++) {
@@ -23,7 +32,7 @@ var createSheetEventClassInstance = function(e) {
   // instantiate the appropriate SheetEvent subclass
   switch (event_type) {
     case ScriptApp.EventType.CLOCK:
-      return new TimedTriggerSheetEventWrapper(e);
+      return new TimedTriggerSheetEventController(e);
       break;
       
     case ScriptApp.EventType.ON_FORM_SUBMIT:
@@ -35,7 +44,7 @@ var createSheetEventClassInstance = function(e) {
       break;
       
     default:
-      return new IgnoreSheetEventWrapper();
+      return new IgnoreSheetEventController();
   }
 }
 
@@ -51,15 +60,15 @@ var createFormSubmitSheetEventClassInstance = function(e){
   
   if (e.values.length === eventForm.values.length){
     // this is a submission of the command form
-    return new CommandFormSubmitSheetEventWrapper(e);
+    return new CommandFormSubmitSheetEventController(e);
   } else{
     // this is a submission of the request form
     // process only if channel is specified
     var channelName = e.values[globalVariables()['FORMINDEX_CHANNEL']];
     if (channelName && channelName !== ''){
-      return new RequestFormSubmitSheetEventWrapper(e);
+      return new RequestFormSubmitSheetEventController(e);
     } else{
-      return new IgnoreSheetEventWrapper();
+      return new IgnoreSheetEventController();
     }
   }
 }
@@ -73,15 +82,17 @@ var createEditSheetEventClassInstance = function(e){
 
   if (e.source.getActiveSheet().getName() === globalVariables()['TRACKING_SHEETNAME']){
     // this is an edit on the tracking sheet
-    return new EditTrackingSheetEventWrapper(e);
+    return new EditTrackingSheetEventController(e);
   } else{
-    return new IgnoreSheetEventWrapper();
+    return new IgnoreSheetEventController();
   } 
 }
 
 
-class SheetEventWrapper {
-  constructor(){
+/*** LOGIC ***/
+
+class SheetEventController {
+  constructor(e){
     // class template
 
     this.subtype=null; // describes the lower level type of event (slash command name, interactive message subtype, ...)
@@ -111,10 +122,10 @@ class SheetEventWrapper {
   }
 }
 
-class IgnoreSheetEventWrapper extends SheetEventWrapper {
+class IgnoreSheetEventController extends SheetEventController {
 }
 
-class TimedTriggerSheetEventWrapper extends SheetEventWrapper {
+class TimedTriggerSheetEventController extends SheetEventController {
   constructor(e){
     super();
     
@@ -127,7 +138,7 @@ class TimedTriggerSheetEventWrapper extends SheetEventWrapper {
   }
 }
 
-class CommandFormSubmitSheetEventWrapper extends SheetEventWrapper {
+class CommandFormSubmitSheetEventController extends SheetEventController {
   constructor(e){
     super();
     
@@ -141,7 +152,7 @@ class CommandFormSubmitSheetEventWrapper extends SheetEventWrapper {
   }
 }
 
-class RequestFormSubmitSheetEventWrapper extends SheetEventWrapper {
+class RequestFormSubmitSheetEventController extends SheetEventController {
   constructor(e){
     super();
     
@@ -157,7 +168,7 @@ class RequestFormSubmitSheetEventWrapper extends SheetEventWrapper {
   }
 }
 
-class EditTrackingSheetEventWrapper extends SheetEventWrapper {
+class EditTrackingSheetEventController extends SheetEventController {
   constructor(e){
     super();
     
@@ -188,7 +199,7 @@ class EditTrackingSheetEventWrapper extends SheetEventWrapper {
       }
     } 
     else{
-      return new IgnoreSheetEventWrapper();
+      return new IgnoreSheetEventController();
     }
   }
 }

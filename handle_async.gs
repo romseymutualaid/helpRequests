@@ -1,8 +1,4 @@
-// Functions for handling async requests.
-
-// All functions handles in this way are expected to return a string that can
-// be either passed to contentServerJsonReply or postToSlack. Args is also
-// required to contain
+// Functions for handling events async.
 
 /**
  * Async run functionName
@@ -40,7 +36,7 @@ function processAsyncWithFormTrigger(cmdName, args) {
  * @param {*} functionName
  * @param {*} args
  */
-function processFunctionAsyncWithTrigger(cmdName, args) {
+function processAsyncWithTimeTrigger(cmdName, args) {
   var trigger = ScriptApp.newTrigger("doTriggered")
     .timeBased()
     .after(100)
@@ -50,7 +46,7 @@ function processFunctionAsyncWithTrigger(cmdName, args) {
 }
 
 
-// Async using trigger is from: https://stackoverflow.com/a/49101767
+// Async using time-based trigger is from: https://stackoverflow.com/a/49101767
 // Below here is a straight copy-and-paste from there.
 
 var RECURRING_KEY = "recurring";

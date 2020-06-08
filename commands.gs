@@ -1,3 +1,18 @@
+// A set of command models are defined here (Command subclasses).
+//
+// All models interface with the database (google sheets) and the view (slack API).
+// Models have a common Command.execute() method which:
+// - gets relevant data from the database
+// - validates command according to database state (throws error if command is not allowed)
+// - updates view and database as required
+//
+// See database functions in sheet_wrapper.gs.
+// See command validity functions in rowChecks.gs.
+// See view functions in slack_messaging.gs.
+
+
+/*** CONSTRUCTORS ***/
+
 /**
  *  Return the appropriate Command subclass instance based on the specified slackCmdString and args parameters.
  * @param {*} slackCmdString
@@ -21,6 +36,12 @@ var createCommandClassInstance = function(slackCmdString, args){
 }
 
 
+/*** LOGIC ***/
+
+/**
+ *  The CommandArgs class encapsulates and formats the arguments passed to a ConcreteCommand,
+ *  as well as methods to manipulate those args (parsing, etc.).
+ */
 class CommandArgs {
   constructor(args){
     this.uniqueid = args.uniqueid;
@@ -60,7 +81,7 @@ class CommandArgs {
 
 
 /**
- *  The Command class is a parent class inherited by all the ConcreteCommand subclasses
+ *  The Command class is an abstract class inherited by all the ConcreteCommand subclasses
  */
 class Command {
   constructor(args){
@@ -99,11 +120,13 @@ class Command {
   }
 }
 
+
 /**
  *  Handler for a "do nothing" command
  */
 class VoidCommand extends Command {
 }
+
 
 /**
  *  Manage a StatusLog command from super user
@@ -124,7 +147,6 @@ class StatusLogCommand extends Command {
 /**
  *  Manage a PostRequest command from super user
  */
-
 class PostRequestCommand extends Command {
   constructor(args){
     super(args);

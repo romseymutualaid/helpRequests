@@ -1,38 +1,14 @@
-// Some functions for formatting and sending messages to slack.
-// For more slack formating, see:
-// https://api.slack.com/tools/block-kit-builder
+// Methods and classes to return or post messages to slack API
 
+/**
+ * Encapsulate string as a JSON response
+ * @param {string} message
+ */
 function contentServerJsonReply(message) {
   // "ContentServer" reply as Json.
   return ContentService
          .createTextOutput(message)
          .setMimeType(ContentService.MimeType.JSON);
-}
-
-/**
- * Create a json string in slack block format for text.
- * @param {string} text
- * @param {boolean} ephemeral
- * @param {string} type
- */
-var textToJsonBlocks = function(text, ephemeral=true, type="mrkdwn"){
-  var blocks = {
-    "blocks": [
-      {
-        "type": "section",
-        "text": {
-          "text": text,
-          "type": type,
-        }
-      }
-    ],
-  };
-
-  if (ephemeral){
-    blocks["response_type"] = "ephemeral";
-  }
-
-  return JSON.stringify(blocks);
 }
 
 /**
@@ -63,6 +39,11 @@ var postToSlack = function(payload, url){
         .getContentText();
 }
 
+/**
+ * Wrapper classes to post to specific slack API urls and log the response.
+ * @param {Command} cmd
+ * @param {string} msg
+ */
 class SlackMessenger {
   constructor(cmd){
     this.cmd = cmd;
