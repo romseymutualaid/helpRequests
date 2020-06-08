@@ -86,6 +86,14 @@ class SlackChannelMessenger extends SlackMessenger {
   }
 }
 
+class SlackChannelUpdateMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.url = globalVariables()['WEBHOOK_CHATUPDATE'];
+    this.loggerMessage.subtype='channelUpdate';
+  }
+}
+
 class SlackModalMessenger extends SlackMessenger {
   constructor(cmd){
     super(cmd);

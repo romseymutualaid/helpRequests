@@ -39,6 +39,7 @@ var textToJsonBlocks = function(text, ephemeral=true, type="mrkdwn"){
 
   if (ephemeral){
     blocks["response_type"] = "ephemeral";
+    blocks["replace_original"] = false;
   }
 
   return JSON.stringify(blocks);

@@ -4,58 +4,102 @@ var requestFormatted = function(row){
   return `<${row.slackURL}|request ${row.uniqueid}> (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
 }
 
-var postRequestMessage = function(row){  
+var volunteerButtonObject = function(row){
+  return {
+    "type": "actions",
+    "elements": [
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": "Volunteer",
+        },
+        "style": "primary",
+        "action_id": "button_volunteer",
+        "value": row.uniqueid,
+        "confirm": {
+          "title": {
+            "type": "plain_text",
+            "text": "Are you sure?"
+          },
+          "text": {
+            "type": "mrkdwn",
+            "text": `You are about to volunteer for ${requestFormatted(row)}.`
+        },
+        "confirm": {
+          "type": "plain_text",
+          "text": "Yes"
+        },
+        "deny": {
+          "type": "plain_text",
+          "text": "No"
+        }
+      }
+      }
+    ]
+  };
+}
+
+var postRequestMessage = function(row, volunteerable=true){  
   var text = 'A resident in your area has a request. Can you help?'; // text to display on mobile app notification
   
-  var blocks = JSON.stringify([
+  var blocks = [
 	{
-		"type": "section",
-		"text": {
-			"text": "<!channel> *A resident in your area has a request. Can you help?*\n"+
-          "_Guidelines for volunteers: <https://docs.google.com/document/d/1l9tssHGzP1Zzr4TSaltlXS3x7QSF4PrGihEpBxoGUwM/edit?usp=sharing|deliveries> -"+
-          " <https://docs.google.com/document/d/1TDuns8kLnbc1TCa9MZLz_uaI6CSVqb3xJvG2gc71Dy4/edit?usp=sharing|escalation> - <https://docs.google.com/document/d/1s35O51IEiZMnodyg4wiw_dVwbn7ZvCQkKu6mKsN_gvM|infection control>_",
-			"type": "mrkdwn"
-		},
-		"fields": [
-          {"type": "mrkdwn", "text": "*Requester:*"},
-          {"type": "plain_text", "text": row.requesterName + " ("+ row.requesterAddr +")"},
-
-          {"type": "mrkdwn", "text": "*Contact details:*"},
-          {"type": "mrkdwn", "text": "To volunteer, send `/volunteer "+row.uniqueid+"` in channel."},
-
-          {"type": "mrkdwn", "text": "*Immediate request:*"},
-          {"type": "plain_text", "text": row.requestType + " "},
-
-          {"type": "mrkdwn", "text": "*Date needed:*"},
-          {"type": "plain_text", "text": formatDate(row.requestDate) + " "},
-
-          {"type": "mrkdwn", "text": "*Request additional info:*"},
-          {"type": "plain_text","text": row.requestInfo + " "}
-		]
-	},
-	{
-		"type": "section",
-		"fields": [
-          {"type": "mrkdwn", "text": "*Prospective needs:*"},
-          {"type": "plain_text", "text": row.requesterGeneralNeeds + " "}
-		]
-	},
+      "type": "section",
+      "text": {
+        "text": "<!channel> *A resident in your area has a request. Can you help?*\n"+
+        "_Guidelines for volunteers: <https://docs.google.com/document/d/1l9tssHGzP1Zzr4TSaltlXS3x7QSF4PrGihEpBxoGUwM/edit?usp=sharing|deliveries> -"+
+        " <https://docs.google.com/document/d/1TDuns8kLnbc1TCa9MZLz_uaI6CSVqb3xJvG2gc71Dy4/edit?usp=sharing|escalation> - <https://docs.google.com/document/d/1s35O51IEiZMnodyg4wiw_dVwbn7ZvCQkKu6mKsN_gvM|infection control>_",
+        "type": "mrkdwn"
+      }
+    },
     {
       "type": "divider"
     },
     {
       "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "_Note: `/volunteer "+row.uniqueid+"` may occasionally fail. If so, please send the command again until you receive contact details_."
-      }
+      "fields": [
+        {"type": "mrkdwn", "text": "*Requester:*"},
+        {"type": "plain_text", "text": row.requesterName + " ("+ row.requesterAddr +")"},
+        
+        {"type": "mrkdwn", "text": "*Contact details:*"},
+        {"type": "mrkdwn", "text": "_Sent only to volunteer._"},
+        
+        {"type": "mrkdwn", "text": "*Immediate request:*"},
+        {"type": "plain_text", "text": row.requestType + " "},
+        
+        {"type": "mrkdwn", "text": "*Date needed:*"},
+        {"type": "plain_text", "text": formatDate(row.requestDate) + " "},
+        
+        {"type": "mrkdwn", "text": "*Request additional info:*"},
+        {"type": "plain_text","text": row.requestInfo + " "}
+      ]
+    },
+    {
+      "type": "section",
+      "fields": [
+        {"type": "mrkdwn", "text": "*Prospective needs:*"},
+        {"type": "plain_text", "text": row.requesterGeneralNeeds + " "},
+        {"type": "mrkdwn", "text": "*Request number:*"},
+        {"type": "plain_text", "text": row.uniqueid + " "}
+      ]
+    },
+    {
+      "type": "divider"
     }
-  ]); // this message is formatted in such a way that all user-input text is escaped (type: "plain_text"). This is intended to protect against cross-site scripting attacks.
+  ]; // this message is formatted in such a way that all user-input text is escaped (type: "plain_text"). This is intended to protect against cross-site scripting attacks.
+    
+  // if the request is volunteerable, add "Volunteer" button as a last block element.
+  if (volunteerable){
+    var button_object = volunteerButtonObject(row);
+    blocks.push(button_object);
+  }
   
   return JSON.stringify({
-    blocks: blocks,
+    blocks: JSON.stringify(blocks),
     text: text,
     channel: row.channelid,
+    ts:row.slackTS, // required for chat.postupdate
     as_user: true
   });
 }
@@ -146,7 +190,9 @@ function volunteerSuccessMessage(row, isFirstMessage=true) {
 
   // Json Template for replying to successful volunteer messages.
   return JSON.stringify({
-  "blocks": [
+    "response_type":"ephemeral",
+    "replace_original": false,
+    "blocks": [
     {
       "type": "section",
       "text": {
@@ -226,9 +272,20 @@ var volunteerChannelMessage = function(row){
 }
 
 var cancelChannelMessage = function(row, oldVolunteerUserID){
-  var text = `<!channel> <@${oldVolunteerUserID}> is no longer available for ${requestFormatted(row)}. Can anyone else help? Type \`/volunteer ${row.uniqueid} \``;
+  var text = `<!channel> <@${oldVolunteerUserID}> is no longer available for ${requestFormatted(row)}. Can anyone else help?`;
+  var blocks = [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": text
+      }
+    },
+    volunteerButtonObject(row)
+  ];
   return JSON.stringify({
     text: text,
+    blocks: blocks,
     thread_ts: row.slackTS,
     channel: row.channelid,
     reply_broadcast: true
@@ -274,32 +331,32 @@ var listHeaderMessage = function(commandName){
 }
 
 var slackTokenNotSetInScriptMessage = function(){
-  return 'error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.';
+  return textToJsonBlocks('error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.');
 }
                       
 var slackTokenIsIncorrectMessage = function(token){
-  return `error: Invalid token ${token}. The command will not run. Please contact the web app developer.`;
+  return textToJsonBlocks(`error: Invalid token ${token}. The command will not run. Please contact the web app developer.`);
 }
       
 var slackWorspaceIsIncorrectMessage = function(){
-  return 'error: You are sending your command from an unauthorised slack workspace.';
+  return textToJsonBlocks('error: You are sending your command from an unauthorised slack workspace.');
 }
 
 var slackEventTypeIsIncorrectMessage = function(eventType){
-  return `error: I can't handle the event type ${eventType}.`;
+  return textToJsonBlocks(`error: I can't handle the event type ${eventType}.`);
 }
 
 var commandNotSupportedMessage = function(commandName){
-  return `error: The \`${commandName}\` command is not currently supported.`;
+  return textToJsonBlocks(`error: The \`${commandName}\` command is not currently supported.`);
 }
 
 var commandNotConnectedMessage = function(commandName){
-  return `error: The \`${commandName}\` command is not properly connected on the server.
-Can you please notify a developer?`;
+  return textToJsonBlocks(`error: The \`${commandName}\` command is not properly connected on the server.
+Can you please notify a developer?`);
 }
 
 var commandArgumentsAreCorruptedMessage = function(){
-return `error: I couldn't process the arguments provided. Can you please notify a developer?`;
+return textToJsonBlocks(`error: I couldn't process the arguments provided. Can you please notify a developer?`);
 }
 
 var commandAvailableOnlyToModeratorMessage = function(commandName){
@@ -308,19 +365,19 @@ var commandAvailableOnlyToModeratorMessage = function(commandName){
 }
 
 var commandPendingMessage = function(){
-  return `Thank you for your message. I'm a poor bot so please be patient... it should take me up to a few minutes to get back to you...`;
+  return textToJsonBlocks(`Thank you for your message. I'm a poor bot so please be patient... it should take me up to a few minutes to get back to you...`);
 }
 
 var uniqueIDnotProvidedMessage = function(){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
-  return `error: You must provide the request number present in the help request message (example: \`/volunteer 9999\`).
-You appear to have not typed any number. If the issue persists, contact ${mention_mod}.`;
+  return textToJsonBlocks(`error: You must provide the request number present in the help request message (example: \`/volunteer 9999\`).
+You appear to have not typed any number. If the issue persists, contact ${mention_mod}.`);
 }
 
 var uniqueIDsyntaxIsIncorrectMessage = function(args){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
-  return `error: The request number \`${args.uniqueid}\` does not appear to be a 4-digit number as expected.
-Please specify a correct request number (example: \`/volunteer 9999\`). If the issue persists, contact ${mention_mod}.`;
+  return textToJsonBlocks(`error: The request number \`${args.uniqueid}\` does not appear to be a 4-digit number as expected.
+Please specify a correct request number (example: \`/volunteer 9999\`). If the issue persists, contact ${mention_mod}.`);
 }
 
 var uniqueIDdoesNotExistMessage = function(args){
@@ -341,14 +398,14 @@ Please can you notify a developer and ask ${mention_mod} for assistance?`);
 
 var userMentionNotProvidedMessage = function(){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
-  return `error: You must mention a user that the command applies to (example: \`/assign 9999 ${mention_mod}\`).
-You appear to have not mentioned anyone. If the issue persists, contact ${mention_mod}.`;
+  return textToJsonBlocks(`error: You must mention a user that the command applies to (example: \`/assign 9999 ${mention_mod}\`).
+You appear to have not mentioned anyone. If the issue persists, contact ${mention_mod}.`);
 }
 
 var userMentionSyntaxIsIncorrectMessage = function(args){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
-  return `error: I did not recognise the user \`${args.mention.str}\` you specified. 
-Please specify the user by their mention name (example: \`/assign 9999 ${mention_mod}\`). If the issue persists, contact ${mention_mod}.`;
+  return textToJsonBlocks(`error: I did not recognise the user \`${args.mention.str}\` you specified. 
+Please specify the user by their mention name (example: \`/assign 9999 ${mention_mod}\`). If the issue persists, contact ${mention_mod}.`);
 }
 
 var wrongChannelMessage = function(row){
@@ -410,7 +467,7 @@ var postToSlackChannelErrorMessage = function(){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];  
   return textToJsonBlocks(
 `error: I have processed your request, but I was unable to notify the slack channel.
-Can you please do so yourself, or ask ${mention_requestCoord} to?`);
+Can you please do so yourself, or ask ${mention_mod} to?`);
 }
 
 var postToSlackModalErrorMessage = function(error_msg){

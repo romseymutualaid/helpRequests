@@ -14,7 +14,7 @@
 /**
  *  Return the appropriate SlackEvent subclass instance based on the specified event object e.
  *  For details on slack events see:
- *  https://api.slack.com/interactivity/
+ *  https://api.slack.com/interactivity
  * @param {*} e
  */
 var createSlackEventClassInstance = function(e) {
@@ -22,9 +22,17 @@ var createSlackEventClassInstance = function(e) {
   var par = e.parameter;
   
   // build the appropriate object depending on event type
-  var payload = par.payload;
-  if (payload){ // this is a slack interactive component event
-    return new SlackInteractiveMessageEventController(JSON.parse(payload));
+  var payload_str = par.payload;
+  if (payload_str){ // this is a slack interactive component event
+    var payload = JSON.parse(payload_str);
+    switch (payload.type){
+      case 'view_submission':
+        return new SlackInteractiveMessageEventController(payload);
+      case 'block_actions':
+        return new SlackButtonEventController(payload);
+      default:
+        throw new Error(slackEventTypeIsIncorrectMessage(payload.type));
+    }
   } else{ // this is a slack slash command event
     return new SlackSlashCommandEventController(par);
   }
@@ -64,7 +72,6 @@ class SlackEventController {
     var globvar = globalVariables();
     var teamid_true =  globvar['TEAM_ID'];
     var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request
-    var accepted_types = ['view_submission', 'command'];
     
     // Check token
     if(!token_true){ // check that token_true has been set in script properties
@@ -77,11 +84,6 @@ class SlackEventController {
     // Check request originates from our slack workspace
     if (this.teamid != teamid_true){
       throw new Error(slackWorspaceIsIncorrectMessage());
-    }
-    
-    // Check syntax of this.type
-    if(!isVarInArray(this.type,accepted_types)){
-      throw new Error(slackEventTypeIsIncorrectMessage(this.type));
     }
     
     // Parse command+args
@@ -107,7 +109,7 @@ class SlackEventController {
 
 class SlackInteractiveMessageEventController extends SlackEventController {
   constructor(par){
-    super();
+    super(par);
     this.token = par.token;
     this.teamid = par.team.id;
 
@@ -130,7 +132,7 @@ class SlackInteractiveMessageEventController extends SlackEventController {
 
 class SlackSlashCommandEventController extends SlackEventController {
   constructor(par){
-    super();
+    super(par);
     this.token = par.token;
     this.teamid = par.team_id;
 
@@ -151,5 +153,27 @@ class SlackSlashCommandEventController extends SlackEventController {
     
     this.cmd = createCommandClassInstance(this.subtype, args);
   }
+}
 
+class SlackButtonEventController extends SlackEventController {
+  constructor(par){
+    super(par);
+    
+    this.token = par.token;
+    this.teamid = par.team.id;
+
+    this.type = par.type;
+    this.subtype = par.actions[0].action_id;
+
+    var args={};
+    args.channelid = par.channel.id;
+    args.userid = par.user.id;
+    args.username = par.user.name;
+    args.response_url = par.response_url;
+    args.trigger_id = par.trigger_id;
+
+    args.uniqueid = par.actions[0].value;
+    
+    this.cmd = createCommandClassInstance(this.subtype, args);
+  }
 }

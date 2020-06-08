@@ -250,6 +250,17 @@ class VolunteerCommand extends Command {
   
   notify(){
     
+    // slack channel chat.update messenger
+    // updates postRequest message to no longer have the "volunteer" button
+    var payload = postRequestMessage(this.row,false);
+    var channelMessenger = new SlackChannelUpdateMessenger(this);
+    var return_message = channelMessenger.send(payload);
+    
+    // halt if message was not successfully sent
+    if (JSON.parse(return_message).ok !== true){
+      throw new Error(postToSlackChannelErrorMessage());
+    }
+    
     // slack channel messenger
     var payload = volunteerChannelMessage(this.row);
     var channelMessenger = new SlackChannelMessenger(this);
@@ -302,6 +313,17 @@ class CancelCommand extends Command {
   }
   
   notify(){
+    
+    // slack channel chat.update messenger
+    // updates postRequest message to regain the "volunteer" button
+    var payload = postRequestMessage(this.row,true);
+    var channelMessenger = new SlackChannelUpdateMessenger(this);
+    var return_message = channelMessenger.send(payload);
+    
+    // halt if message was not successfully sent
+    if (JSON.parse(return_message).ok !== true){
+      throw new Error(postToSlackChannelErrorMessage());
+    }
     
     // slack channel messenger
     var payload = cancelChannelMessage(this.row,this.slackVolunteerID_old);                                                                                                           
