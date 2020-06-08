@@ -81,7 +81,7 @@ var doneModalMessage = function(args){
           "type": "section",
           "text": {
             "type": "mrkdwn",
-            "text": ":wave: Hi <@"+args.userid+">,\n\nThanks for letting me know you have provided help for request number "+uniqueid+". The on-duty request coordinator has some questions, would you mind taking a few seconds to fill them in?"
+            "text": ":wave: Hi <@"+args.userid+">,\n\nThanks for letting me know you have provided help for request number "+args.uniqueid+". The on-duty request coordinator has some questions, would you mind taking a few seconds to fill them in?"
           }
 		},
 		{
