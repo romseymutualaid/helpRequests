@@ -194,7 +194,7 @@ class EditTrackingSheetEventController extends SheetEventController {
       } 
       else {
         // for other status changes, just log the change
-        args.more = e.value;
+        args.more = {"requestStatusValue": e.value};
         this.cmd = new StatusLogCommand(args);
       }
     } 

@@ -129,13 +129,42 @@ class VoidCommand extends Command {
 
 
 /**
+ *  Manage an opening of the slack app home page by user
+ */
+class HomeOpenedCommand extends Command {
+  parse(){
+    if(this.args.more.tab !== 'home'){
+      throw new Error(AppHomeWrongTabErrorMessage());
+    }
+  }
+  
+  getSheetData(){
+    this.rows = this.tracking_sheet.getAllRows()
+    .filter(
+      // non-closed status, belongs to user
+      row => isVarInArray(row.requestStatus,['Assigned','Ongoing']) &&
+      row.slackVolunteerID === this.args.userid
+      );
+  }
+  
+  notify(){
+    
+    // slack app home messenger
+    var payload = appHomeMessage(this.args, this.rows);
+    var appHomeMessenger = new SlackAppHomeMessenger(this);
+    var return_message = appHomeMessenger.send(payload);    
+  }
+}
+
+
+/**
  *  Manage a StatusLog command from super user
  */
 class StatusLogCommand extends Command {
   constructor(args){
     super(args);
     this.loggerMessage.subtype='statusManualEdit';
-    this.loggerMessage.additionalInfo=this.args.more;
+    this.loggerMessage.additionalInfo=this.args.more.requestStatusValue;
   }
   
   notify(){
@@ -382,7 +411,7 @@ class DoneCommand extends Command {
     this.loggerMessage.subtype='done';
     
     // done modal responses
-    var modalResponseVals = args.more;
+    var modalResponseVals = args.more.modalResponseValues;
     this.requestNextStatus = modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value;
     this.completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
     if (!this.completionLastDetails){
@@ -547,8 +576,7 @@ class ListMineCommand extends Command {
     .filter(
       // non-closed status, belongs to user and correct channel
       row => isVarInArray(row.requestStatus,['Assigned','Ongoing']) &&
-      row.slackVolunteerID === this.args.userid &&
-      row.channelid === this.args.channelid
+      row.slackVolunteerID === this.args.userid
       )
       .map(row => listLineMessage(row,false,false))
       .join('');
@@ -576,8 +604,7 @@ class ListAllMineCommand extends Command {
     var message_out_body = this.rows
     .filter(
       //  belongs to user and correct channel
-      row => row.slackVolunteerID === this.args.userid &&
-      row.channelid === this.args.channelid
+      row => row.slackVolunteerID === this.args.userid
       )
       .map(row => listLineMessage(row,true,false))
       .join('');

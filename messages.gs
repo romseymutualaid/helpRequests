@@ -1,46 +1,119 @@
 // All custom messages sent to the view (slack API) are stored here.
 
+var appHomePageDirectionsFormatted = function(){
+  var TEAM_ID = globalVariables()['TEAM_ID'];
+  var APP_ID = globalVariables()['SLACK_APP_ID'];
+  return `<slack:\/\/app?team=${TEAM_ID}&id=${APP_ID}&tab=home|request dashboard> (Shorcut icon :zap: in message box -> Search "My requests dashboard")`;
+}
+
 var requestFormatted = function(row){
   return `<${row.slackURL}|request ${row.uniqueid}> (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
 }
 
-var volunteerButtonObject = function(row){
+var requestPrivateDetailsFormatted = function(row){
+  
+  var householdMessage = "";
+  if (row.householdSit != ""){
+    householdMessage = "\nTheir household situation is: " + row.householdSit + ".\n"
+  }
+  
   return {
-    "type": "actions",
-    "elements": [
-      {
-        "type": "button",
-        "text": {
-          "type": "plain_text",
-          "text": "Volunteer",
-        },
-        "style": "primary",
-        "action_id": "button_volunteer",
-        "value": row.uniqueid,
-        "confirm": {
-          "title": {
-            "type": "plain_text",
-            "text": "Are you sure?"
-          },
-          "text": {
-            "type": "mrkdwn",
-            "text": `You are about to volunteer for ${requestFormatted(row)}.`
-        },
-        "confirm": {
-          "type": "plain_text",
-          "text": "Yes"
-        },
-        "deny": {
-          "type": "plain_text",
-          "text": "No"
-        }
-      }
-      }
-    ]
+    "type": "section",
+    "text": {
+      "type": "plain_text",
+      "text": "The requester's name is " + row.requesterName +
+      ".\n Their address is: " + row.requesterAddr +
+      ".\n And their contact details are: " + row.requesterContact +
+      householdMessage
+    }
   };
 }
 
-var postRequestMessage = function(row, volunteerable=true){  
+var requestFormattedFull = function(row){
+  
+  return [
+    {
+      "type":"divider"
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": `<${row.slackURL}|Request ${row.uniqueid}>`
+      }
+    },
+    requestPrivateDetailsFormatted(row),
+    {
+      "type": "actions",
+      "elements": [
+        cancelButtonObject(row),
+        doneButtonObject(row)
+      ]
+    },
+    {
+      "type":"divider"
+    }
+  ];
+}
+
+var volunteerButtonObject = function(row){
+  return {
+    "type": "button",
+    "text": {
+      "type": "plain_text",
+      "text": "Volunteer",
+    },
+    "style": "primary",
+    "action_id": "button_volunteer",
+    "value": row.uniqueid,
+    "confirm": {
+      "title": {
+        "type": "plain_text",
+        "text": "Are you sure?"
+      },
+      "text": {
+        "type": "mrkdwn",
+        "text": `You are about to volunteer for ${requestFormatted(row)}.`
+      },
+      "confirm": {
+        "type": "plain_text",
+        "text": "Yes"
+      },
+      "deny": {
+        "type": "plain_text",
+        "text": "No"
+      }
+    }
+  };
+}
+
+var cancelButtonObject = function(row){
+  return {
+    "type": "button",
+    "text": {
+      "type": "plain_text",
+      "text": "I can no longer help"
+    },
+    "action_id": "button_cancel",
+    "value": row.uniqueid
+  };
+}
+
+var doneButtonObject = function(row){
+  return {
+    "type": "button",
+    "style": "primary",
+    "text": {
+      "type": "plain_text",
+      "text": "I have helped"
+    },
+    "action_id": "button_done_send_modal",
+    "value": row.uniqueid
+  };
+}
+
+var postRequestMessage = function(row, volunteerable=true){ 
+  
   var text = 'A resident in your area has a request. Can you help?'; // text to display on mobile app notification
   
   var blocks = [
@@ -91,8 +164,24 @@ var postRequestMessage = function(row, volunteerable=true){
     
   // if the request is volunteerable, add "Volunteer" button as a last block element.
   if (volunteerable){
-    var button_object = volunteerButtonObject(row);
-    blocks.push(button_object);
+    blocks.push(
+      {
+        "type": "actions",
+        "elements": [
+          volunteerButtonObject(row)
+        ]
+      }
+    );
+  } else{
+    blocks.push(
+      {
+        "type": "section",
+        "text": {
+          "type": "mrkdwn",
+          "text": `*This request has been volunteered for. Find all the requests you have signed up for on your ${appHomePageDirectionsFormatted()}.*`
+        }
+      }
+    );
   }
   
   return JSON.stringify({
@@ -173,13 +262,8 @@ var doneModalMessage = function(args){
   });
 }
 
-function volunteerSuccessMessage(row, isFirstMessage=true) {
+var volunteerSuccessMessage = function(row, isFirstMessage=true) {
   var mention_requestCoord = globalVariables()['MENTION_REQUESTCOORD'];
-  
-  var householdMessage = "";
-  if (row.householdSit != ""){
-    householdMessage = "\nTheir household situation is: " + row.householdSit + ".\n"
-  }
 
   // personalise text depending on whether this is the first time volunteer sees the message or not
   if (isFirstMessage){
@@ -187,48 +271,23 @@ function volunteerSuccessMessage(row, isFirstMessage=true) {
   } else{
     var introTxt = ":nerd_face::tada: You are still signed up for <" + row.slackURL + "|request " + row.uniqueid + ">."
   }
-
-  // Json Template for replying to successful volunteer messages.
-  return JSON.stringify({
-    "response_type":"ephemeral",
-    "replace_original": false,
-    "blocks": [
+  
+  var blocks_header = [
     {
       "type": "section",
       "text": {
         "type": "mrkdwn",
         "text": introTxt
       }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "plain_text",
-                "text": "The requester's name is " + row.requesterName +
-                        ".\n Their address is: " + row.requesterAddr +
-                        ".\n And their contact details are: " + row.requesterContact +
-                        householdMessage
-      }
-    },
+    }
+  ];
+  
+  var blocks_footer = [
     {
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "When you are done, type `/done " + row.uniqueid + "`"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "To cancel your help offer, type `/cancel " + row.uniqueid + "`"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "To see this message again, type `/volunteer " + row.uniqueid + "`"
+        "text": `*Let me know when you have helped - or if you wish to cancel - on your ${appHomePageDirectionsFormatted()}.*`
       }
     },
     {
@@ -238,7 +297,25 @@ function volunteerSuccessMessage(row, isFirstMessage=true) {
         "text": "If you need any help, please contact " + mention_requestCoord + "."
       }
     }
-  ]
+  ];
+  
+  var blocks_divider = [
+    {
+      "type": "divider"
+    }
+  ];
+
+  // Json Template for replying to successful volunteer messages.
+  return JSON.stringify({
+    "response_type":"ephemeral",
+    "replace_original": false,
+    "blocks": [].concat(
+      blocks_header,
+      blocks_divider,
+      [requestPrivateDetailsFormatted(row)],
+      blocks_divider,
+      blocks_footer
+    )
   });
 }
 
@@ -281,7 +358,12 @@ var cancelChannelMessage = function(row, oldVolunteerUserID){
         "text": text
       }
     },
-    volunteerButtonObject(row)
+    {
+      "type":"actions",
+      "elements":[
+        volunteerButtonObject(row)
+      ]
+    },
   ];
   return JSON.stringify({
     text: text,
@@ -322,9 +404,9 @@ var listHeaderMessage = function(commandName){
     case 'listall':
       return 'These are all the requests posted in this channel:\n';
     case 'listmine':
-      return 'These are the active help requests you are assigned to in this channel:\n';
+      return 'These are the active help requests you are assigned to:\n';
     case 'listallmine':
-      return 'These are all the help requests you volunteered for in this channel:\n';
+      return 'These are all the help requests you volunteered for:\n';
     default:
       throw new Error(textToJsonBlocks(`I don't recognise the list command \`${commandName}\`. Can you please contact a developer?`));
   }
@@ -463,6 +545,10 @@ I couldn't recognise the current status value "${row.requestStatus}" of request 
 Please can you notify a developer and ask ${mention_mod} for assistance?`);
 }
 
+var postToSlackNoUrlErrorMessage = function(payload){
+  return `No url specified for payload ${payload}`;
+}
+
 var postToSlackChannelErrorMessage = function(){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];  
   return textToJsonBlocks(
@@ -475,4 +561,41 @@ var postToSlackModalErrorMessage = function(error_msg){
 `I was not able to send you the \`/done\` submission form. Can you please notify a developer?
 This is the error message:
 ${error_msg}`);
+}
+
+var AppHomeWrongTabErrorMessage = function(){
+  return textToJsonBlocks(`I only trigger when the home tab is opened. Ignoring this request.`);
+}
+
+var appHomeMessage = function(args, rows, showArchivedRequests=false){
+  
+  if (showArchivedRequests){
+    var header_text = listHeaderMessage('listallmine');
+  } else{
+    var header_text = listHeaderMessage('listmine');
+  }
+  
+  var header_blocks = [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": header_text
+      }
+    }
+  ];
+  
+  var body_blocksArray = rows
+      .map(row => requestFormattedFull(row));
+  var blocks = header_blocks.concat(...body_blocksArray);
+  
+  var view = {
+    type: 'home',
+    blocks: blocks
+  };
+  
+  return JSON.stringify({
+    user_id: args.userid,
+    view: view
+  });
 }

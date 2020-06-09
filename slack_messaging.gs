@@ -17,6 +17,7 @@ function contentServerJsonReply(message) {
  * @param {string} url
  */
 var postToSlack = function(payload, url){
+    
   if (JSON.parse(payload).as_user === true){
     var access_token = PropertiesService
                       .getScriptProperties()
@@ -74,6 +75,9 @@ class SlackUserAsyncMessenger extends SlackMessenger {
   constructor(cmd){
     super(cmd);
     this.url = this.cmd.args.response_url;
+    if (!this.url){ // if no url is specified, instantiate a VoidMessenger instead.
+      return new VoidMessenger(cmd);
+    }
     this.loggerMessage.subtype='userAsync';
   }
 }
@@ -102,3 +106,10 @@ class SlackModalMessenger extends SlackMessenger {
   }
 }
 
+class SlackAppHomeMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.url = globalVariables()['WEBHOOK_VIEWPUBLISH'];
+    this.loggerMessage.subtype='appHome';
+  }
+}

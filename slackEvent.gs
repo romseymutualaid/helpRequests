@@ -23,7 +23,8 @@ var createSlackEventClassInstance = function(e) {
   
   // build the appropriate object depending on event type
   var payload_str = par.payload;
-  if (payload_str){ // this is a slack interactive component event
+  if (payload_str){
+    // this is a slack interactive component event
     var payload = JSON.parse(payload_str);
     switch (payload.type){
       case 'view_submission':
@@ -33,8 +34,20 @@ var createSlackEventClassInstance = function(e) {
       default:
         throw new Error(slackEventTypeIsIncorrectMessage(payload.type));
     }
-  } else{ // this is a slack slash command event
-    return new SlackSlashCommandEventController(par);
+  } else{ 
+    var par_raw = tryParseJSON(e.postData.contents);
+    if (par_raw.type === 'url_verification'){
+      // this is a slack url verification event 
+      return new SlackUrlVerificationEventController(par_raw);
+    } else if (par_raw.type === 'event_callback'){
+      // this is a slack API event
+      return new SlackAPIEventController(par_raw);      
+    } else if (par.command) {
+      // this is a slack slash command event
+      return new SlackSlashCommandEventController(par);
+    } else {
+      throw new Error(slackEventTypeIsIncorrectMessage("type_unknown"));
+    }
   }
 }
 
@@ -64,13 +77,11 @@ class SlackEventController {
       more:null // (optional) space for extra arguments
     };
     
-    this.cmd = null; // Command class instance returned by createCommandClassInstance(this.subtype, args)
+    this.cmd = new VoidCommand(args); // Command class instance returned by createCommandClassInstance(this.subtype, args)
   }
 
   parse(){
     // Fetch validation variables
-    var globvar = globalVariables();
-    var teamid_true =  globvar['TEAM_ID'];
     var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request
     
     // Check token
@@ -79,11 +90,6 @@ class SlackEventController {
     }
     if (this.token !== token_true) {
       throw new Error(slackTokenIsIncorrectMessage(this.token));
-    }
-
-    // Check request originates from our slack workspace
-    if (this.teamid != teamid_true){
-      throw new Error(slackWorspaceIsIncorrectMessage());
     }
     
     // Parse command+args
@@ -106,6 +112,31 @@ class SlackEventController {
   }
 }
 
+class SlackUrlVerificationEventController extends SlackEventController {
+  constructor(par){
+    super(par);
+    this.token = par.token;
+    this.cmd.immediateReturnMessage = par.challenge;
+  }
+}
+
+class SlackAPIEventController extends SlackEventController {
+  constructor(par){
+    super(par);
+    this.token = par.token;
+    this.teamid = par.team_id;
+    
+    this.type = 'event_callback';
+    this.subtype = par.event.type;
+    
+    var args = {};
+    args.channelid = par.event.channel;
+    args.userid = par.event.user;
+    args.more = {"tab": par.event.tab};
+    
+    this.cmd = createCommandClassInstance(this.subtype, args);
+  }
+}
 
 class SlackInteractiveMessageEventController extends SlackEventController {
   constructor(par){
@@ -124,7 +155,7 @@ class SlackInteractiveMessageEventController extends SlackEventController {
     args.response_url = metadata_parsed.response_url;
 
     args.uniqueid = metadata_parsed.uniqueid;
-    args.more = par.view.state.values;
+    args.more = {"modalResponseValues": par.view.state.values};
     
     this.cmd = createCommandClassInstance(this.subtype, args);
   }

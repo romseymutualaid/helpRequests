@@ -14,7 +14,7 @@ function doPost(e) { // catch HTTP POST events. see https://developers.google.co
     return contentServerJsonReply(messageToUser);
   }
   catch(errObj){
-    if (errObj instanceof TypeError  || errObj instanceof ReferenceError){
+    if (errObj instanceof TypeError  || errObj instanceof ReferenceError || errObj instanceof SyntaxError){
       // if a code error, throw the full error log
       throw errObj;
     }
@@ -29,7 +29,7 @@ function doTriggered(e){ // catch all Installed Trigger events. see https://deve
     sheetEvent.notify(message);
   }
   catch(errObj){
-    if (errObj instanceof TypeError  || errObj instanceof ReferenceError){
+    if (errObj instanceof TypeError  || errObj instanceof ReferenceError || errObj instanceof SyntaxError){
       // if a code error, throw the full error log
       throw errObj;
     }

@@ -7,6 +7,7 @@ function globalVariables(){
     LOG_SHEETNAME: 'log',
     TRACKING_SHEETNAME: 'tracking',
 
+    SLACK_APP_ID: 'A0131GHD0TS',
     TEAM_ID: 'T0103NU4UVA',
     MENTION_REQUESTCOORD: '<@U0108S6B96X>',
     MOD_USERID: 'U0108S6B96X',
@@ -57,6 +58,8 @@ function globalVariables(){
     
     // A key-value object to associate slack command strings to the command subclass that should be instantiated
     SUBCLASS_FROM_SLACKCMD: {
+      undefined:VoidCommand,
+      'app_home_opened':HomeOpenedCommand,
       'button_volunteer':VolunteerCommand,
       'done_modal':DoneCommand,
       '/volunteer':VolunteerCommand,
@@ -107,7 +110,8 @@ function globalVariables(){
     WEBHOOK_CHATPOSTMESSAGE: 'https://slack.com/api/chat.postMessage',
     WEBHOOK_CHATPOSTMODAL: 'https://slack.com/api/views.open',
     WEBHOOK_CHATPOSTMESSAGE_EPHEMERAL: 'https://slack.com/api/chat.postEphemeral',
-    WEBHOOK_CHATUPDATE: 'https://slack.com/api/chat.update'
+    WEBHOOK_CHATUPDATE: 'https://slack.com/api/chat.update',
+    WEBHOOK_VIEWPUBLISH: 'https://slack.com/api/views.publish'
   };
   return globvar;
 }
