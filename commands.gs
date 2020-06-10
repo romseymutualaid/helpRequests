@@ -127,6 +127,22 @@ class Command {
 class VoidCommand extends Command {
 }
 
+class HomeShortcutCommand extends Command {
+  notify(){
+    // Send post request to Slack views.open API to open a modal for user
+    var payload = appHomeShortcutModalMessage(this.args);
+    var modalMessenger = new SlackModalMessenger(this);
+    var return_message = modalMessenger.send(payload);
+  
+    // halt if message was not successfully sent
+    if (JSON.parse(return_message).ok !== true){
+      throw new Error(postToSlackDefaultModalErrorMessage(return_message));
+    }
+    
+    // user return message printer
+    return defaultSendModalSuccessMessage();
+  }
+}
 
 /**
  *  Manage an opening of the slack app home page by user
@@ -330,7 +346,6 @@ class CancelCommand extends Command {
   checkCommandValidity(){
     checkUniqueIDexists(this.row, this.args);
     checkUniqueIDconsistency(this.row, this.args);
-    checkChannelIDconsistency(this.row, this.args);
     checkRowIsCancellable(this.row, this.args);
   }
   
@@ -376,7 +391,7 @@ class CancelCommand extends Command {
 /**
  *  Manage a done modal request from user or moderator
  */
-class DoneSendModalCommand extends Command { //todo: make this an async command so that it can pass back row information in modal
+class DoneSendModalCommand extends Command {
   
   parse(){
     this.args.parseUniqueID();
@@ -391,7 +406,7 @@ class DoneSendModalCommand extends Command { //todo: make this an async command 
   
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
-      throw new Error(postToSlackModalErrorMessage(return_message));
+      throw new Error(postToSlackDoneModalErrorMessage(return_message));
     }
     
     // user return message printer
@@ -409,13 +424,20 @@ class DoneCommand extends Command {
     
     this.immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
     this.loggerMessage.subtype='done';
-    
+
     // done modal responses
     var modalResponseVals = args.more.modalResponseValues;
     this.requestNextStatus = modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value;
-    this.completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
-    if (!this.completionLastDetails){
-      this.completionLastDetails=''; // replace undefined with ''
+    // check optional argument isn't empty or undefined
+    if (
+      modalResponseVals.completionLastDetails && 
+      modalResponseVals.requestNextStatus.requestNextStatusVal &&
+      modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option &&
+      modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value
+    ){
+      this.completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
+    } else{
+      this.completionLastDetails = ''; // replace null/undefined with ''
     }
   }
   
@@ -441,7 +463,6 @@ class DoneCommand extends Command {
   checkCommandValidity(){
     checkUniqueIDexists(this.row, this.args);
     checkUniqueIDconsistency(this.row, this.args);
-    checkChannelIDconsistency(this.row, this.args);
     checkRowAcceptsDone(this.row, this.args);
   }
   

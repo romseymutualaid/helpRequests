@@ -20,13 +20,15 @@
 var createSlackEventClassInstance = function(e) {
   // extract event message body
   var par = e.parameter;
-  
+
   // build the appropriate object depending on event type
   var payload_str = par.payload;
   if (payload_str){
     // this is a slack interactive component event
     var payload = JSON.parse(payload_str);
     switch (payload.type){
+      case 'shortcut':
+        return new SlackGlobalShortcutEventController(payload);
       case 'view_submission':
         return new SlackInteractiveMessageEventController(payload);
       case 'block_actions':
@@ -138,6 +140,23 @@ class SlackAPIEventController extends SlackEventController {
   }
 }
 
+class SlackGlobalShortcutEventController extends SlackEventController {
+  constructor(par){
+    super(par);
+    this.token = par.token;
+    this.teamid = par.team.id;
+
+    this.type = par.type;
+    this.subtype = par.callback_id;
+    
+    var args={};
+    args.userid = par.user.id;
+    args.trigger_id = par.trigger_id;
+    
+    this.cmd = createCommandClassInstance(this.subtype, args);
+  }
+}
+
 class SlackInteractiveMessageEventController extends SlackEventController {
   constructor(par){
     super(par);
@@ -197,7 +216,7 @@ class SlackButtonEventController extends SlackEventController {
     this.subtype = par.actions[0].action_id;
 
     var args={};
-    args.channelid = par.channel.id;
+    if (par.channel) args.channelid = par.channel.id;
     args.userid = par.user.id;
     args.username = par.user.name;
     args.response_url = par.response_url;

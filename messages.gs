@@ -1,9 +1,11 @@
 // All custom messages sent to the view (slack API) are stored here.
 
-var appHomePageDirectionsFormatted = function(){
+var appHomePageDirectionsFormatted = function(linkOnly=false){
   var TEAM_ID = globalVariables()['TEAM_ID'];
   var APP_ID = globalVariables()['SLACK_APP_ID'];
-  return `<slack:\/\/app?team=${TEAM_ID}&id=${APP_ID}&tab=home|request dashboard> (Shorcut icon :zap: in message box -> Search "My requests dashboard")`;
+  var link = `<slack:\/\/app?team=${TEAM_ID}&id=${APP_ID}&tab=home|request dashboard>`;
+  if (linkOnly) return link;
+  else return `${link} (Shorcut icon :zap: in message box -> Search "My requests dashboard")`;
 }
 
 var requestFormatted = function(row){
@@ -107,7 +109,7 @@ var doneButtonObject = function(row){
       "type": "plain_text",
       "text": "I have helped"
     },
-    "action_id": "button_done_send_modal",
+    "action_id": "button_done",
     "value": row.uniqueid
   };
 }
@@ -193,6 +195,27 @@ var postRequestMessage = function(row, volunteerable=true){
   });
 }
 
+var appHomeShortcutModalMessage = function(args){
+  
+  var view = JSON.stringify({
+    "type": "modal",
+    "title": {"type": "plain_text","text": "Shortcut"},
+    "blocks": [
+      {
+        "type": "section",
+        "text":{
+          "type": "mrkdwn",
+          "text": appHomePageDirectionsFormatted(linkOnly=true)
+        }
+      }
+    ]
+  });
+  
+  return JSON.stringify({
+    trigger_id: args.trigger_id,
+    view: view
+  });
+}
 
 var doneModalMessage = function(args){
 
@@ -205,7 +228,7 @@ var doneModalMessage = function(args){
   var view = JSON.stringify({
 	"type": "modal",
 	"title": {"type": "plain_text","text": "How did it go?"},
-    "callback_id": "done_modal",
+    "callback_id": "modal_done",
     "private_metadata": cmd_metadata,
 	"submit": {"type": "plain_text","text": "Submit"},
 	"close": {"type": "plain_text","text": "Cancel"},
@@ -294,6 +317,13 @@ var volunteerSuccessMessage = function(row, isFirstMessage=true) {
       "type": "section",
       "text": {
         "type": "mrkdwn",
+        "text": `Alternatively, you can send \`/done ${row.uniqueid}\`, \`/cancel ${row.uniqueid}\` or \`/volunteer ${row.uniqueid}\` in the channel.`
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
         "text": "If you need any help, please contact " + mention_requestCoord + "."
       }
     }
@@ -322,6 +352,10 @@ var volunteerSuccessMessage = function(row, isFirstMessage=true) {
 var cancelSuccessMessage = function(row){
   return textToJsonBlocks(`You just cancelled your offer for help for ${requestFormatted(row)}.
 I've notified the channel.`);
+}
+
+var defaultSendModalSuccessMessage = function(){
+  return textToJsonBlocks(`A popup will open in less than 3 seconds... If not, please try again.`);
 }
 
 var doneSendModalSuccessMessage = function(args){
@@ -545,10 +579,6 @@ I couldn't recognise the current status value "${row.requestStatus}" of request 
 Please can you notify a developer and ask ${mention_mod} for assistance?`);
 }
 
-var postToSlackNoUrlErrorMessage = function(payload){
-  return `No url specified for payload ${payload}`;
-}
-
 var postToSlackChannelErrorMessage = function(){
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];  
   return textToJsonBlocks(
@@ -556,7 +586,15 @@ var postToSlackChannelErrorMessage = function(){
 Can you please do so yourself, or ask ${mention_mod} to?`);
 }
 
-var postToSlackModalErrorMessage = function(error_msg){
+
+var postToSlackDefaultModalErrorMessage = function(error_msg){
+  return textToJsonBlocks(
+`I was not able to send you a popup response. Can you please notify a developer?
+This is the error message:
+${error_msg}`);
+}
+
+var postToSlackDoneModalErrorMessage = function(error_msg){
   return textToJsonBlocks(
 `I was not able to send you the \`/done\` submission form. Can you please notify a developer?
 This is the error message:

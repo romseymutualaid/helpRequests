@@ -59,9 +59,12 @@ function globalVariables(){
     // A key-value object to associate slack command strings to the command subclass that should be instantiated
     SUBCLASS_FROM_SLACKCMD: {
       undefined:VoidCommand,
+      'shortcut_app_home':HomeShortcutCommand,
       'app_home_opened':HomeOpenedCommand,
       'button_volunteer':VolunteerCommand,
-      'done_modal':DoneCommand,
+      'button_cancel':CancelCommand,
+      'button_done':DoneSendModalCommand,
+      'modal_done':DoneCommand,
       '/volunteer':VolunteerCommand,
       '/assign':AssignCommand,
       '/cancel':CancelCommand,
@@ -96,6 +99,8 @@ function globalVariables(){
     
     // Commands that are to be processed sync
     SYNC_COMMANDS: [
+      'shortcut_app_home',
+      'button_done',
       '/jb_d',
       '/ib_d',
       '/_done',
