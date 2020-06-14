@@ -108,7 +108,7 @@ class SheetEventController {
       more:null // (optional) space for extra arguments
     };
     
-    this.cmd = new VoidCommand(args); // Command class instance returned by createCommandClassInstance(this.subtype, args)
+    this.cmd = createCommandClassInstance(this.subtype, args); // Command class instance returned by createCommandClassInstance(this.subtype, args)
     
     this.SlackMessengerBehaviour = new VoidMessenger(this.cmd);
   }
@@ -134,7 +134,7 @@ class TimedTriggerSheetEventController extends SheetEventController {
     this.subtype = cmdName;
     this.cmd = createCommandClassInstance(this.subtype, args);
     
-    this.SlackMessengerBehaviour = new SlackUserAsyncMessenger(this.cmd);
+    this.SlackMessengerBehaviour = new SlackResponseUrlMessenger(this.cmd);
   }
 }
 
@@ -148,7 +148,11 @@ class CommandFormSubmitSheetEventController extends SheetEventController {
     this.subtype = cmdName;
     this.cmd = createCommandClassInstance(this.subtype, args);
     
-    this.SlackMessengerBehaviour = new SlackUserAsyncMessenger(this.cmd);
+    if (this.cmd === DoneCommand){
+      this.SlackMessengerBehaviour = new SlackModalUpdateMessenger(this.cmd);
+    } else {
+      this.SlackMessengerBehaviour = new SlackResponseUrlMessenger(this.cmd);
+    }
   }
 }
 

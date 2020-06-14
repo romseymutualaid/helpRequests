@@ -422,7 +422,8 @@ class DoneCommand extends Command {
   constructor(args){
     super(args);
     
-    this.immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
+//    this.immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
+    this.immediateReturnMessage = pendingModalPushMessage(this.args); // push a "pending modal" back to user
     this.loggerMessage.subtype='done';
 
     // done modal responses
@@ -483,8 +484,14 @@ class DoneCommand extends Command {
     this.tracking_sheet.writeRow(this.row);
     this.log_sheet.appendFormattedRow(this.loggerMessage);
     
+//    // send confirmation modal to user
+//    var payload = doneSuccessModalMessage(this.row, this.args);
+//    var modalUpdateMessenger = new SlackModalUpdateMessenger(this);
+//    var return_message = modalUpdateMessenger.send(payload);
+    
     // user return message printer
-    return doneSuccessMessage(this.row,true);
+//    return doneSuccessMessage(this.row);
+    return doneSuccessModalMessage(this.row, this.args);
   }
   
   nextCommand(){

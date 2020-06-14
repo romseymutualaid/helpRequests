@@ -40,6 +40,7 @@ var postToSlack = function(payload, url){
         .getContentText();
 }
 
+
 /**
  * Wrapper classes to post to specific slack API urls and log the response.
  * @param {Command} cmd
@@ -58,8 +59,13 @@ class SlackMessenger {
     };
   }
   
-  send(msg){
-    var return_message = postToSlack(msg, this.url);
+  decoratePayload(payload){
+    return payload;
+  }
+  
+  send(payload){
+    var payload = this.decoratePayload(payload);
+    var return_message = postToSlack(payload, this.url);
     this.loggerMessage.additionalInfo = return_message;
     this.cmd.log_sheet.appendFormattedRow(this.loggerMessage);
     return return_message;
@@ -67,11 +73,32 @@ class SlackMessenger {
 }
 
 class VoidMessenger extends SlackMessenger {
-  send(msg){
+  send(payload){
   }
 }
 
-class SlackUserAsyncMessenger extends SlackMessenger {
+class SlackReturnMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.loggerMessage.subtype='userSync';
+  }
+  
+  send(payload){
+  }
+  
+  decoratePayload(payload){
+    var payloadObj = JSON.parse(payload);
+    if(payloadObj.blocks){
+      // this is a non-modal block message.
+      // decorate with ephemeral properties.
+      payloadObj["response_type"] = "ephemeral";
+      payloadObj["replace_original"] = false;
+    }
+    return JSON.stringify(payloadObj);
+  }
+}
+
+class SlackResponseUrlMessenger extends SlackMessenger {
   constructor(cmd){
     super(cmd);
     this.url = this.cmd.args.response_url;
@@ -79,6 +106,12 @@ class SlackUserAsyncMessenger extends SlackMessenger {
       return new VoidMessenger(cmd);
     }
     this.loggerMessage.subtype='userAsync';
+  }
+  
+  decoratePayload(payload){
+    payloadObj["response_type"] = "ephemeral";
+    payloadObj["replace_original"] = false;
+    return JSON.stringify(payloadObj);
   }
 }
 
@@ -101,8 +134,16 @@ class SlackChannelUpdateMessenger extends SlackMessenger {
 class SlackModalMessenger extends SlackMessenger {
   constructor(cmd){
     super(cmd);
-    this.url = globalVariables()['WEBHOOK_CHATPOSTMODAL'];
-    this.loggerMessage.subtype='userModal';
+    this.url = globalVariables()['WEBHOOK_VIEWOPEN'];
+    this.loggerMessage.subtype='modal';
+  }
+}
+
+class SlackModalUpdateMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.url = globalVariables()['WEBHOOK_VIEWUPDATE'];
+    this.loggerMessage.subtype = 'modalUpdate';
   }
 }
 

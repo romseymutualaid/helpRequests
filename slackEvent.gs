@@ -34,7 +34,7 @@ var createSlackEventClassInstance = function(e) {
       case 'block_actions':
         return new SlackButtonEventController(payload);
       default:
-        throw new Error(slackEventTypeIsIncorrectMessage(payload.type));
+        return new SlackUnsupportedEventController(payload);
     }
   } else{ 
     var par_raw = tryParseJSON(e.postData.contents);
@@ -48,7 +48,7 @@ var createSlackEventClassInstance = function(e) {
       // this is a slack slash command event
       return new SlackSlashCommandEventController(par);
     } else {
-      throw new Error(slackEventTypeIsIncorrectMessage("type_unknown"));
+      return new SlackUnsupportedEventController({"type":"type_unknown"});
     }
   }
 }
@@ -79,7 +79,8 @@ class SlackEventController {
       more:null // (optional) space for extra arguments
     };
     
-    this.cmd = new VoidCommand(args); // Command class instance returned by createCommandClassInstance(this.subtype, args)
+    this.cmd = createCommandClassInstance(this.subtype, args); // Command class instance returned by createCommandClassInstance(this.subtype, args)
+    this.SlackMessengerBehaviour = new VoidMessenger(this.cmd);
   }
 
   parse(){
@@ -103,14 +104,27 @@ class SlackEventController {
     
     if (isVarInArray(this.subtype,globalVariables()["SYNC_COMMANDS"])){
       // Handle Sync
-      var immediateReturnMessage = this.cmd.execute(); 
+      this.cmd.immediateReturnMessage = this.cmd.execute(); 
     } else {
       // Handle Async
-      var immediateReturnMessage = this.cmd.immediateReturnMessage;
       processFunctionAsync(this.subtype, this.cmd.args);
     }
     
-    return immediateReturnMessage;
+    return this.cmd.immediateReturnMessage;
+  }
+  
+  decorateResponse(payload){
+    // Decorate Command response accordingly
+    return this.SlackMessengerBehaviour.decoratePayload(payload);
+  }
+}
+
+class SlackUnsupportedEventController extends SlackEventController {
+  constructor(par){
+    super(par);
+    this.token = par.token;
+    this.cmd.immediateReturnMessage = slackEventTypeIsIncorrectMessage(par.type);
+    this.SlackMessengerBehaviour = new SlackReturnMessenger(this.cmd);
   }
 }
 
@@ -119,6 +133,7 @@ class SlackUrlVerificationEventController extends SlackEventController {
     super(par);
     this.token = par.token;
     this.cmd.immediateReturnMessage = par.challenge;
+    this.SlackMessengerBehaviour = new SlackReturnMessenger(this.cmd);
   }
 }
 
@@ -160,6 +175,7 @@ class SlackGlobalShortcutEventController extends SlackEventController {
 class SlackInteractiveMessageEventController extends SlackEventController {
   constructor(par){
     super(par);
+    console.log(par);
     this.token = par.token;
     this.teamid = par.team.id;
 
@@ -172,6 +188,7 @@ class SlackInteractiveMessageEventController extends SlackEventController {
     args.channelid = metadata_parsed.channelid;
     args.userid = par.user.id;
     args.response_url = metadata_parsed.response_url;
+    args.trigger_id = par.trigger_id;
 
     args.uniqueid = metadata_parsed.uniqueid;
     args.more = {"modalResponseValues": par.view.state.values};

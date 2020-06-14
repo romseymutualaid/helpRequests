@@ -1,5 +1,8 @@
 // All custom messages sent to the view (slack API) are stored here.
 
+
+/*** FORMATTED STRINGS / BLOCKS / OBJECTS ***/
+
 var appHomePageDirectionsFormatted = function(linkOnly=false){
   var TEAM_ID = globalVariables()['TEAM_ID'];
   var APP_ID = globalVariables()['SLACK_APP_ID'];
@@ -114,6 +117,8 @@ var doneButtonObject = function(row){
   };
 }
 
+/*** CHANNEL MESSAGES ***/
+
 var postRequestMessage = function(row, volunteerable=true){ 
   
   var text = 'A resident in your area has a request. Can you help?'; // text to display on mobile app notification
@@ -195,6 +200,52 @@ var postRequestMessage = function(row, volunteerable=true){
   });
 }
 
+var volunteerChannelMessage = function(row){
+  var text = `<@${row.slackVolunteerID}> has volunteered. :tada:`;
+  return JSON.stringify({
+    text: text,
+    thread_ts: row.slackTS,
+    channel: row.channelid,
+  });
+}
+
+var cancelChannelMessage = function(row, oldVolunteerUserID){
+  var text = `<!channel> <@${oldVolunteerUserID}> is no longer available for ${requestFormatted(row)}. Can anyone else help?`;
+  var blocks = [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": text
+      }
+    },
+    {
+      "type":"actions",
+      "elements":[
+        volunteerButtonObject(row)
+      ]
+    },
+  ];
+  return JSON.stringify({
+    text: text,
+    blocks: blocks,
+    thread_ts: row.slackTS,
+    channel: row.channelid,
+    reply_broadcast: true
+  });
+}
+
+var doneChannelMessage = function(row){
+  var text = `Thanks for helping out <@${row.slackVolunteerID}>! :nerd_face:`;
+  return JSON.stringify({
+    text: text,
+    thread_ts: row.slackTS,
+    channel: row.channelid
+  });
+}
+
+/*** MODAL MESSAGES ***/
+
 var appHomeShortcutModalMessage = function(args){
   
   var view = JSON.stringify({
@@ -214,6 +265,31 @@ var appHomeShortcutModalMessage = function(args){
   return JSON.stringify({
     trigger_id: args.trigger_id,
     view: view
+  });
+}
+
+var pendingModalPushMessage = function(args){
+  var view = {
+    "type": "modal",
+    "external_id": args.trigger_id, // message unique identifier for subsequent updating
+    "title": {
+      "type": "plain_text",
+      "text": "Confirmation"
+    },
+    "blocks": [
+      {
+        "type": "section",
+        "text": {
+          "type": "plain_text",
+          "text": "Please wait..."
+        }
+      }
+    ]
+  };
+  
+  return JSON.stringify({
+    "response_action": "push",
+    "view": view
   });
 }
 
@@ -284,6 +360,8 @@ var doneModalMessage = function(args){
     view: view
   });
 }
+
+/*** EPHEMERAL MESSAGES ***/
 
 var volunteerSuccessMessage = function(row, isFirstMessage=true) {
   var mention_requestCoord = globalVariables()['MENTION_REQUESTCOORD'];
@@ -366,55 +444,30 @@ var doneSuccessMessage = function(row){
   return textToJsonBlocks(
 `You have confirmed your interaction with ${requestFormatted(row)}.
 I've notified volunteers in the help request thread and sent
-your form submission to the request coordinator on-duty.`);
+your form submission to the request coordinator on-duty.
+Thanks again!`);
+}
+
+var doneSuccessModalMessage = function(row, args){
+  var view = {
+    "type": "modal",
+    "title": {
+      "type": "plain_text",
+      "text": "Confirmation"
+    },
+    "close": {"type": "plain_text", "text": "OK"},
+    "clear_on_close": true
+  };  
+  view["blocks"] = JSON.parse(doneSuccessMessage(row))["blocks"];
+  
+  return JSON.stringify({
+    "view": view,
+    "external_id": args.trigger_id
+  });
 }
 
 var assignPendingMessage = function(){
   return textToJsonBlocks(`Assigning volunteer on behalf...`);
-}
-
-var volunteerChannelMessage = function(row){
-  var text = `<@${row.slackVolunteerID}> has volunteered. :tada:`;
-  return JSON.stringify({
-    text: text,
-    thread_ts: row.slackTS,
-    channel: row.channelid,
-  });
-}
-
-var cancelChannelMessage = function(row, oldVolunteerUserID){
-  var text = `<!channel> <@${oldVolunteerUserID}> is no longer available for ${requestFormatted(row)}. Can anyone else help?`;
-  var blocks = [
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": text
-      }
-    },
-    {
-      "type":"actions",
-      "elements":[
-        volunteerButtonObject(row)
-      ]
-    },
-  ];
-  return JSON.stringify({
-    text: text,
-    blocks: blocks,
-    thread_ts: row.slackTS,
-    channel: row.channelid,
-    reply_broadcast: true
-  });
-}
-
-var doneChannelMessage = function(row){
-  var text = `Thanks for helping out <@${row.slackVolunteerID}>! :nerd_face:`;
-  return JSON.stringify({
-    text: text,
-    thread_ts: row.slackTS,
-    channel: row.channelid
-  });
 }
 
 var listLineMessage = function(row, printStatus=false, printVolunteer=false) {
@@ -604,6 +657,8 @@ ${error_msg}`);
 var AppHomeWrongTabErrorMessage = function(){
   return textToJsonBlocks(`I only trigger when the home tab is opened. Ignoring this request.`);
 }
+
+/*** APP HOME MESSAGES ***/
 
 var appHomeMessage = function(args, rows, showArchivedRequests=false){
   

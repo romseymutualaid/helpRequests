@@ -25,7 +25,7 @@ function getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROW
  * @param {string} type
  */
 var textToJsonBlocks = function(text, ephemeral=true, type="mrkdwn"){
-  var blocks = {
+  var payload = {
     "blocks": [
       {
         "type": "section",
@@ -37,12 +37,12 @@ var textToJsonBlocks = function(text, ephemeral=true, type="mrkdwn"){
     ],
   };
 
-  if (ephemeral){
-    blocks["response_type"] = "ephemeral";
-    blocks["replace_original"] = false;
-  }
-
-  return JSON.stringify(blocks);
+//  if (ephemeral){
+//    payload["response_type"] = "ephemeral";
+//    payload["replace_original"] = false;
+//  }
+//
+  return JSON.stringify(payload);
 }
 
 //****************************************

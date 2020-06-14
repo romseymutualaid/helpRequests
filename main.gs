@@ -7,18 +7,20 @@
 
 
 function doPost(e) { // catch HTTP POST events. see https://developers.google.com/apps-script/guides/web
+  var slackEvent = createSlackEventClassInstance(e);
   try{
-    var slackEvent = createSlackEventClassInstance(e);
     slackEvent.parse();
     var messageToUser = slackEvent.handle();
-    return contentServerJsonReply(messageToUser);
+    var payload = slackEvent.decorateResponse(messageToUser);
+    return contentServerJsonReply(payload);
   }
   catch(errObj){
     if (errObj instanceof TypeError  || errObj instanceof ReferenceError || errObj instanceof SyntaxError){
       // if a code error, throw the full error log
       throw errObj;
     }
-    return contentServerJsonReply(errObj.message);
+    var payload = slackEvent.decorateResponse(errObj.message);
+    return contentServerJsonReply(payload);
   }
 }
 
