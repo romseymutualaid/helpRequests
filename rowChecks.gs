@@ -1,8 +1,10 @@
+// Validation logic for ConcreteCommands (see commands.gs)
+
 var checkUniqueIDexists = function(row, args) {
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   
   if (isVarInArray(row.uniqueid,["",null,undefined])){
-    throw new Error(uniqueIDdoesNotExist(args));
+    throw new Error(uniqueIDdoesNotExistMessage(args));
   }
 }
 
@@ -10,14 +12,15 @@ var checkUniqueIDconsistency = function(row, args) {
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
   
   if (row.uniqueid !== args.uniqueid){
-    throw new Error(uniqueIDlookupIsCorrupted(row,args));
+    throw new Error(uniqueIDlookupIsCorruptedMessage(row,args));
   }
 }
 
 var checkChannelIDconsistency = function(row, args) {
   var mention_mod = globalVariables()['MENTION_REQUESTCOORD'];
+  var mod_userid = globalVariables()['MOD_USERID'];
   
-  if (row.channelid !== args.channelid){
+  if (args.userid !== mod_userid && row.channelid !== args.channelid){
     throw new Error(wrongChannelMessage(row));
   }
 }
@@ -53,13 +56,13 @@ var checkRowIsCancellable = function(row, args) {
   var mod_userid = globalVariables()['MOD_USERID'];
   
   // the request is open, and assigned to user or user is moderator
-  if (isVarInArray(row.requestStatus,['Assigned','Ongoing','ToClose?']) && 
+  if (isVarInArray(row.requestStatus,['Assigned','Ongoing','ToClose?','Re-open']) && 
       isVarInArray(args.userid,[row.slackVolunteerID, mod_userid])){
       return;
 }
   else{
     // request is open and unassigned
-    if (isVarInArray(row.requestStatus,['Sent','FailSend','Re-open'])) {
+    if (isVarInArray(row.requestStatus,['Sent','FailSend'])) {
       throw new Error(requestUnassignedMessage(row));
     } 
     // request is open and assigned to another user

@@ -1,7 +1,9 @@
-// Some functions for formatting and sending messages to slack.
-// For more slack formating, see:
-// https://api.slack.com/tools/block-kit-builder
+// Methods and classes to return or post messages to slack API
 
+/**
+ * Encapsulate string as a JSON response
+ * @param {string} message
+ */
 function contentServerJsonReply(message) {
   // "ContentServer" reply as Json.
   return ContentService
@@ -10,39 +12,12 @@ function contentServerJsonReply(message) {
 }
 
 /**
- * Create a json string in slack block format for text.
- * @param {string} text
- * @param {boolean} ephemeral
- * @param {string} type
- */
-var textToJsonBlocks = function(text, ephemeral=true, type="mrkdwn"){
-  var blocks = {
-    "blocks": [
-      {
-        "type": "section",
-        "text": {
-          "text": text,
-          "type": type,
-        }
-      }
-    ],
-  };
-
-  if (ephemeral){
-    blocks["response_type"] = "ephemeral";
-  }
-
-  return JSON.stringify(blocks);
-}
-
-/**
  * Post to slack.
  * @param {string} payload
  * @param {string} url
- * @param {boolean} as_user
  */
-var postToSlack = function(payload, url, as_user=false){
-  if (as_user){
+var postToSlack = function(payload, url){
+  if (JSON.parse(payload).as_user === true){
     var access_token = PropertiesService
                       .getScriptProperties()
                       .getProperty('ACCESS_TOKEN_USER');
@@ -64,36 +39,58 @@ var postToSlack = function(payload, url, as_user=false){
         .getContentText();
 }
 
-
-
-var slackUserReply = function(payload, uniqueid, response_url){
-  var return_message = postToSlack(payload, response_url);
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow([new Date(), uniqueid, 'admin','messageUser', return_message]);
-}
-
-var slackChannelReply = function(payload, uniqueid){
-  var globvar = globalVariables();
-  var mention_requestCoord = globvar['MENTION_REQUESTCOORD'];
-  var url = globvar['WEBHOOK_CHATPOSTMESSAGE'];
+/**
+ * Wrapper classes to post to specific slack API urls and log the response.
+ * @param {Command} cmd
+ * @param {string} msg
+ */
+class SlackMessenger {
+  constructor(cmd){
+    this.cmd = cmd;
+    this.url = null;
+    this.loggerMessage={
+      uniqueid:this.cmd.args.uniqueid,
+      userid:'admin',
+      type:'slackResponse',
+      subtype:'',
+      additionalInfo:''
+    };
+  }
   
-  var return_message = postToSlack(payload, url);
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow([new Date(), uniqueid,'admin','messageChannel',return_message]);
-  
-  if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
-    throw new Error(postToSlackChannelErrorMessage());
+  send(msg){
+    var return_message = postToSlack(msg, this.url);
+    this.loggerMessage.additionalInfo = return_message;
+    this.cmd.log_sheet.appendFormattedRow(this.loggerMessage);
+    return return_message;
   }
 }
 
-var slackModalReply = function(payload, uniqueid){
-  var url = 'https://slack.com/api/views.open';
-  
-  var return_message = postToSlack(payload, url);
-  var log_sheet = new LogSheetWrapper();
-  log_sheet.appendRow([new Date(), uniqueid,'admin','messageUserModal',return_message]);
-  
-  if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
-    throw new Error(postToSlackModalErrorMessage(return_message));
+class VoidMessenger extends SlackMessenger {
+  send(msg){
   }
 }
+
+class SlackUserAsyncMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.url = this.cmd.args.response_url;
+    this.loggerMessage.subtype='userAsync';
+  }
+}
+
+class SlackChannelMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.url = globalVariables()['WEBHOOK_CHATPOSTMESSAGE'];
+    this.loggerMessage.subtype='channel';
+  }
+}
+
+class SlackModalMessenger extends SlackMessenger {
+  constructor(cmd){
+    super(cmd);
+    this.url = globalVariables()['WEBHOOK_CHATPOSTMODAL'];
+    this.loggerMessage.subtype='userModal';
+  }
+}
+

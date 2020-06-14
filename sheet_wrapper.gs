@@ -52,7 +52,7 @@ class TrackingSheetWrapper {
     var rowNumber = getRowNumberByUniqueID(row.uniqueid, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX);
     var existingRow = this.getRowByUniqueID(row.uniqueid);
     if (existingRow.uniqueid != row.uniqueid){
-      throw "Attempting to write to row with unmatching uniqueids. id: " + row.uniqueid;
+      throw new Error(uniqueIDlookupIsCorruptedMessage(existingRow, row));
     }
     
     for (var i = 0; i < this.columns.length; i++) {
@@ -81,6 +81,15 @@ class LogSheetWrapper {
     // Append array row to the end of the sheet.
     var row_log = this.sheet.getLastRow();
     this.sheet.getRange(row_log+1,1,1, row.length).setValues([row]);
+  }
+  
+  appendFormattedRow(msg){
+    var row = this.makeFormattedRow(msg);
+    this.sheet.appendRow(row);
+  }
+  
+  makeFormattedRow(msg){
+    return [new Date(), msg.uniqueid, msg.userid, msg.type, msg.subtype, msg.additionalInfo];
   }
 }
 

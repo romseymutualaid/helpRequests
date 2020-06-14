@@ -1,5 +1,20 @@
+// Unpack and process slack event objects.
+//
+// Events are routed to a specific SlackEventController subclass.
+// The SlackEventController subclass has a Command model behaviour that it calls
+// synchronously (.execute() method) or asynchronously (handle_async.gs).
+//
+// Slack events currently supported:
+// - slash commands (/volunteer, /cancel, etc.)
+// - interactive messages (modals)
+
+
+/*** CONSTRUCTORS ***/
+
 /**
  *  Return the appropriate SlackEvent subclass instance based on the specified event object e.
+ *  For details on slack events see:
+ *  https://api.slack.com/interactivity/
  * @param {*} e
  */
 var createSlackEventClassInstance = function(e) {
@@ -9,16 +24,19 @@ var createSlackEventClassInstance = function(e) {
   // build the appropriate object depending on event type
   var payload = par.payload;
   if (payload){ // this is a slack interactive component event
-    return new SlackInteractiveMessageEvent(JSON.parse(payload));
+    return new SlackInteractiveMessageEventController(JSON.parse(payload));
   } else{ // this is a slack slash command event
-    return new SlackSlashCommandEvent(par);
+    return new SlackSlashCommandEventController(par);
   }
 }
 
-class SlackEventWrapper {
-  // Wrapper for slack doPost events
 
-  constructor(){
+/*** LOGIC ***/
+
+class SlackEventController {
+  // Controller for slack doPost events
+
+  constructor(par){
     // class template
 
     this.token=null; // slack app verification token string
@@ -41,41 +59,39 @@ class SlackEventWrapper {
     this.cmd = null; // Command class instance returned by createCommandClassInstance(this.subtype, args)
   }
 
-  checkAuthenticity(){
-    // fetch validation variables
+  parse(){
+    // Fetch validation variables
     var globvar = globalVariables();
     var teamid_true =  globvar['TEAM_ID'];
     var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request
-
-    // check token
+    var accepted_types = ['view_submission', 'command'];
+    
+    // Check token
     if(!token_true){ // check that token_true has been set in script properties
-      throw new Error('error: VERIFICATION_TOKEN is not set in script properties. The command will not run. Please contact the web app developer.');
+      throw new Error(slackTokenNotSetInScriptMessage());
     }
     if (this.token !== token_true) {
-      throw new Error('error: Invalid token ' + this.token + ' . The command will not run. Please contact the web app developer.');
+      throw new Error(slackTokenIsIncorrectMessage(this.token));
     }
 
-    // check request originates from our slack workspace
+    // Check request originates from our slack workspace
     if (this.teamid != teamid_true){
-      throw new Error('error: You are sending your command from an unauthorised slack workspace.');
-    }
-  }
-
-  checkSyntax(){
-    // Check syntax of this.type and parse command+args
-
-    var accepted_types = ['view_submission', 'command'];
-    if(accepted_types.indexOf(this.type) < 0){ // if this.type does not match any accepted_types, return error
-      throw new Error(`error: I can't handle the event type ${this.type}.`);
+      throw new Error(slackWorspaceIsIncorrectMessage());
     }
     
+    // Check syntax of this.type
+    if(!isVarInArray(this.type,accepted_types)){
+      throw new Error(slackEventTypeIsIncorrectMessage(this.type));
+    }
+    
+    // Parse command+args
     this.cmd.parse();
   }
 
   handle(){
     // Process Command
     
-    if (globalVariables()["SYNC_COMMANDS"].indexOf(this.subtype) != -1){
+    if (isVarInArray(this.subtype,globalVariables()["SYNC_COMMANDS"])){
       // Handle Sync
       var immediateReturnMessage = this.cmd.execute(); 
     } else {
@@ -84,12 +100,12 @@ class SlackEventWrapper {
       processFunctionAsync(this.subtype, this.cmd.args);
     }
     
-    return contentServerJsonReply(immediateReturnMessage);
+    return immediateReturnMessage;
   }
 }
 
 
-class SlackInteractiveMessageEvent extends SlackEventWrapper {
+class SlackInteractiveMessageEventController extends SlackEventController {
   constructor(par){
     super();
     this.token = par.token;
@@ -112,7 +128,7 @@ class SlackInteractiveMessageEvent extends SlackEventWrapper {
   }
 }
 
-class SlackSlashCommandEvent extends SlackEventWrapper {
+class SlackSlashCommandEventController extends SlackEventController {
   constructor(par){
     super();
     this.token = par.token;

@@ -1,4 +1,4 @@
-//// all global variable declarations are made here
+// All custom global variable declarations are made here.
 
 var GlobalFuncHandle = this; // this is used to call functions by name (i.e. GlobalFuncHandle[funcName]();)
 
@@ -99,11 +99,13 @@ function globalVariables(){
     ],
     
       // Which method should be used for delayed reponses?
-//      ASYNC_METHOD:"processFunctionAsyncWithTrigger", // time-based trigger
+//      ASYNC_METHOD:"processAsyncWithTimeTrigger", // time-based trigger
       ASYNC_METHOD:"processAsyncWithFormTrigger", // form-based trigger
 
+    // Slack API URLs for message sending
     WEBHOOK_CHATPOSTMESSAGE: 'https://slack.com/api/chat.postMessage',
-    WEBHOOK_CHATPOSTMESSAGE_EPHEMERAL: 'https://slack.com/api/chat.postEphemeral',
+    WEBHOOK_CHATPOSTMODAL: 'https://slack.com/api/views.open',
+    WEBHOOK_CHATPOSTMESSAGE_EPHEMERAL: 'https://slack.com/api/chat.postEphemeral'
   };
   return globvar;
 }
