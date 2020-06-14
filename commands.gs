@@ -431,9 +431,9 @@ class DoneCommand extends Command {
     // check optional argument isn't empty or undefined
     if (
       modalResponseVals.completionLastDetails && 
-      modalResponseVals.requestNextStatus.requestNextStatusVal &&
-      modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option &&
-      modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value
+      modalResponseVals.completionLastDetails.completionLastDetailsVal &&
+      modalResponseVals.completionLastDetails.completionLastDetailsVal.selected_option &&
+      modalResponseVals.completionLastDetails.completionLastDetailsVal.selected_option.value
     ){
       this.completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
     } else{
