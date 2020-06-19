@@ -362,8 +362,14 @@ class DoneCommand extends Command {
     // done modal responses
     var modalResponseVals = args.more;
     this.requestNextStatus = modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value;
-    this.completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
-    if (!this.completionLastDetails){
+    if (
+      modalResponseVals.completionLastDetails && 
+      modalResponseVals.completionLastDetails.completionLastDetailsVal &&
+      modalResponseVals.completionLastDetails.completionLastDetailsVal.selected_option &&
+      modalResponseVals.completionLastDetails.completionLastDetailsVal.selected_option.value
+    ){
+      this.completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
+    } else{
       this.completionLastDetails=''; // replace undefined with ''
     }
   }
