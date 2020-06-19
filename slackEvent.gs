@@ -102,12 +102,14 @@ class SlackEventController {
   handle(){
     // Process Command
     
-    if (isVarInArray(this.subtype,globalVariables()["SYNC_COMMANDS"])){
-      // Handle Sync
-      this.cmd.immediateReturnMessage = this.cmd.execute(); 
-    } else {
-      // Handle Async
-      processFunctionAsync(this.subtype, this.cmd.args);
+    if (!this.cmd instanceof VoidCommand){
+      if (isVarInArray(this.subtype,globalVariables()["SYNC_COMMANDS"])){
+        // Handle Sync
+        this.cmd.immediateReturnMessage = this.cmd.execute(); 
+      } else {
+        // Handle Async
+        processFunctionAsync(this.subtype, this.cmd.args);
+      }
     }
     
     return this.cmd.immediateReturnMessage;
@@ -124,7 +126,6 @@ class SlackUnsupportedEventController extends SlackEventController {
     super(par);
     this.token = par.token;
     this.cmd.immediateReturnMessage = slackEventTypeIsIncorrectMessage(par.type);
-    this.SlackMessengerBehaviour = new SlackReturnMessenger(this.cmd);
   }
 }
 
@@ -133,7 +134,6 @@ class SlackUrlVerificationEventController extends SlackEventController {
     super(par);
     this.token = par.token;
     this.cmd.immediateReturnMessage = par.challenge;
-    this.SlackMessengerBehaviour = new SlackReturnMessenger(this.cmd);
   }
 }
 

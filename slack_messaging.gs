@@ -40,6 +40,88 @@ var postToSlack = function(payload, url){
         .getContentText();
 }
 
+/*** CONSTRUCTORS ***/
+
+/**
+ *  Return the appropriate SlackMessenger subclass instance based on the specified slackCmdString (i.e. event origin).
+ * @param {*} slackCmdString
+ */
+var createMessengerClassInstance = function(slackCmdString){
+  
+//  SYNC_COMMANDS: [
+//      'shortcut_app_home',
+//      'button_done',
+//      '/jb_d',
+//      '/ib_d',
+//      '/_done',
+//      '/done'
+//    ],
+//  
+//  SUBCLASS_FROM_SLACKCMD: {
+//      undefined:VoidCommand, VoidMessenger-
+//      null:VoidCommand, VoidMessenger-
+//      '':VoidCommand, VoidMessenger-
+//      'shortcut_app_home':HomeShortcutCommand, SlackModalMessenger-
+//      'app_home_opened':HomeOpenedCommand, VoidMessenger-SlackAppHomeMessenger
+//      'button_volunteer':VolunteerCommand, VoidMessenger-SlackResponseUrlMessenger
+//      'button_cancel':CancelCommand, SlackTriggerIdMessenger-SlackModalMessenger
+//      'button_done':DoneSendModalCommand, VoidMessenger-SlackModalMessenger
+//      'modal_done':DoneCommand,
+//      '/volunteer':VolunteerCommand,
+//      '/assign':AssignCommand, SlackResponseUrlMessenger
+//      '/cancel':CancelCommand,
+//      '/done':DoneSendModalCommand,
+//      '/list':ListCommand,
+//      '/listactive':ListActiveCommand,
+//      '/listall':ListAllCommand,
+//      '/listmine':ListMineCommand,
+//      '/listallmine':ListAllMineCommand,
+//      '/_volunteer':VolunteerCommand,
+//      '/_assign':AssignCommand,
+//      '/_cancel':CancelCommand,
+//      '/_done':DoneSendModalCommand,
+//      '/_list':ListCommand,
+//      '/_listactive':ListActiveCommand,
+//      '/_listall':ListAllCommand,
+//      '/_listmine':ListMineCommand,
+//      '/_listallmine':ListAllMineCommand,
+//      '/jb_l':ListCommand,
+//      '/jb_lac':ListActiveCommand,
+//      '/jb_la':ListAllCommand,
+//      '/jb_lm':ListMineCommand,
+//      '/jb_lam':ListAllMineCommand,
+//      '/jb_v':VolunteerCommand,
+//      '/jb_c':CancelCommand,
+//      '/jb_d':DoneSendModalCommand,
+//      '/jb_a':AssignCommand,
+//      '/ib_v':VolunteerCommand,
+//      '/ib_c':CancelCommand,
+//      '/ib_d':DoneSendModalCommand
+//    },
+//  
+//  
+//  switch (slackCmdString){
+//      case 
+//  }
+//  
+//  
+//  
+//  var SUBCLASS_FROM_SLACKCMD = globalVariables().SUBCLASS_FROM_SLACKCMD;
+//  
+//  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(slackCmdString)){ // if no key is found for slackCmdString, return error
+//    throw new Error(commandNotSupportedMessage(slackCmdString));
+//  }
+//  if (typeof SUBCLASS_FROM_SLACKCMD[slackCmdString] !== 'function'){
+//    throw new Error(commandNotConnectedMessage(slackCmdString));
+//  }
+//  if (typeof args !== 'object' || args === null){
+//    throw new Error(commandArgumentsAreCorruptedMessage());
+//  }
+//  
+//  return new SUBCLASS_FROM_SLACKCMD[slackCmdString](args);
+}
+
+/*** LOGIC ***/
 
 /**
  * Wrapper classes to post to specific slack API urls and log the response.
@@ -77,26 +159,26 @@ class VoidMessenger extends SlackMessenger {
   }
 }
 
-class SlackReturnMessenger extends SlackMessenger {
-  constructor(cmd){
-    super(cmd);
-    this.loggerMessage.subtype='userSync';
-  }
-  
-  send(payload){
-  }
-  
-  decoratePayload(payload){
-    var payloadObj = JSON.parse(payload);
-    if(payloadObj.blocks){
-      // this is a non-modal block message.
-      // decorate with ephemeral properties.
-      payloadObj["response_type"] = "ephemeral";
-      payloadObj["replace_original"] = false;
-    }
-    return JSON.stringify(payloadObj);
-  }
-}
+//class SlackReturnMessenger extends SlackMessenger {
+//  constructor(cmd){
+//    super(cmd);
+//    this.loggerMessage.subtype='userSync';
+//  }
+//  
+//  send(payload){
+//  }
+//  
+//  decoratePayload(payload){
+//    var payloadObj = JSON.parse(payload);
+//    if(payloadObj.blocks){
+//      // this is a non-modal block message.
+//      // decorate with ephemeral properties.
+//      payloadObj["response_type"] = "ephemeral";
+//      payloadObj["replace_original"] = false;
+//    }
+//    return JSON.stringify(payloadObj);
+//  }
+//}
 
 class SlackResponseUrlMessenger extends SlackMessenger {
   constructor(cmd){
@@ -109,6 +191,7 @@ class SlackResponseUrlMessenger extends SlackMessenger {
   }
   
   decoratePayload(payload){
+    var payloadObj = JSON.parse(payload);
     payloadObj["response_type"] = "ephemeral";
     payloadObj["replace_original"] = false;
     return JSON.stringify(payloadObj);
