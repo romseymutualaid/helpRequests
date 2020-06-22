@@ -18,7 +18,7 @@ var postRequestMessage = function(row){
 		},
 		"fields": [
           {"type": "mrkdwn", "text": "*Requester:*"},
-          {"type": "plain_text", "text": row.requesterName + " ("+ row.requesterAddr +")"},
+          {"type": "plain_text", "text": row.requesterName + " ("+ stripStartingNumbers(row.requesterAddr) +")"},
 
           {"type": "mrkdwn", "text": "*Contact details:*"},
           {"type": "mrkdwn", "text": "To volunteer, send `/volunteer "+row.uniqueid+"` in channel."},
