@@ -1,28 +1,31 @@
-// A set of command models are defined here (Command subclasses).
-//
-// All models interface with the database (google sheets) and the view (slack API).
-// Models have a common Command.execute() method which:
-// - gets relevant data from the database
-// - validates command according to database state (throws error if command is not allowed)
-// - updates view and database as required
-//
-// See database functions in sheet_wrapper.gs.
-// See command validity functions in rowChecks.gs.
-// See view functions in slack_messaging.gs.
-
+/**
+ * @fileoverview A set of command models are defined here (Command subclasses).
+ *
+ * All models interface with the database (google sheets) and the view (slack API).
+ * Models have a common Command.execute() method which:
+ * - gets relevant data from the database
+ * - validates command according to database state (throws error if command is 
+ * not allowed)
+ * - updates view and database as required
+ *
+ * See database functions in sheet_wrapper.gs.
+ * See command validity functions in rowChecks.gs.
+ * See view functions in slack_messaging.gs.
+ */
 
 /*** CONSTRUCTORS ***/
 
 /**
- *  Return the appropriate Command subclass instance based on the specified slackCmdString and args parameters.
- * @param {*} slackCmdString
- * @param {*} args
+ * Return the appropriate Command subclass instance.
+ * @param {string} slackCmdString
+ * @param {object} args
  */
 var createCommandClassInstance = function(slackCmdString, args){
   
   var SUBCLASS_FROM_SLACKCMD = globalVariables().SUBCLASS_FROM_SLACKCMD;
   
-  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(slackCmdString)){ // if no key is found for slackCmdString, return error
+  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(slackCmdString)){
+    // if no key is found for slackCmdString, return error
     throw new Error(commandNotSupportedMessage(slackCmdString));
   }
   if (typeof SUBCLASS_FROM_SLACKCMD[slackCmdString] !== 'function'){
