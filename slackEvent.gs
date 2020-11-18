@@ -12,9 +12,9 @@
 /*** CONSTRUCTORS ***/
 
 /**
- *  Return the appropriate SlackEvent subclass instance based on the specified event object e.
- *  For details on slack events see:
- *  https://api.slack.com/interactivity/
+ * Return the appropriate SlackEvent subclass instance based on the specified 
+ * event object e.
+ * For details on slack events see https://api.slack.com/interactivity/
  * @param {*} e
  */
 var createSlackEventClassInstance = function(e) {
@@ -42,28 +42,34 @@ class SlackEventController {
     this.token=null; // slack app verification token string
     this.teamid=null; // slack workspace id
 
-    this.type=null; // describes the high level type of event (slash command, interactive message, ...)
-    this.subtype=null; // describes the lower level type of event (slash command name, interactive message subtype, ...)
+    this.type=null; // describes the high level type of event 
+    // (slash command, interactive message, ...)
+    this.subtype=null; // describes the lower level type of event
+    // (slash command name, interactive message subtype, ...)
 
     var args={
       channelid:null, // channel_id that event originates from
       userid:null, // user_id from whom the event originates
       username:null, // (optional) user_name associated to this.userid
       response_url:null, // POST url to provide delayed response to user
-      trigger_id:null, // needed to generate interactive messages in response to event
+      trigger_id:null, // needed to generate interactive messages in 
+      // response to event
       uniqueid:null, // (optional) help request number
-      mention:{str:null, userid:null, username:null}, // (optional) markdown-formatted mention name
+      mention:{str:null, userid:null, username:null}, // (optional) 
+      // markdown-formatted mention name
       more:null // (optional) space for extra arguments
     };
     
-    this.cmd = null; // Command class instance returned by createCommandClassInstance(this.subtype, args)
+    this.cmd = null; // Command class instance returned by 
+    // createCommandClassInstance(this.subtype, args)
   }
 
   parse(){
     // Fetch validation variables
     var globvar = globalVariables();
     var teamid_true =  globvar['TEAM_ID'];
-    var token_true = PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'); // expected verification token that accompanies slack API request
+    var token_true = PropertiesService.getScriptProperties().getProperty(
+      'VERIFICATION_TOKEN'); // expected slack API verification token.
     var accepted_types = ['view_submission', 'command'];
     
     // Check token

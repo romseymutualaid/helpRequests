@@ -3,12 +3,14 @@
 //****************************************
 
 function getUniqueIDbyRowNumber(row, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX){
-  var uniqueid = +row + UNIQUEID_START_VAL - UNIQUEID_START_ROWINDEX; // assumes: tracking sheet rows are sorted by contiguous increasing request-number
+  // assumes: tracking sheet rows are sorted by contiguous increasing request-number
+  var uniqueid = +row + UNIQUEID_START_VAL - UNIQUEID_START_ROWINDEX;
   return(uniqueid.toString());
 }
 
 function getRowNumberByUniqueID(uniqueid, UNIQUEID_START_VAL, UNIQUEID_START_ROWINDEX){
-  var row = +uniqueid - UNIQUEID_START_VAL +UNIQUEID_START_ROWINDEX; // assumes: tracking sheet rows are sorted by contiguous increasing request-number
+  // assumes: tracking sheet rows are sorted by contiguous increasing request-number
+  var row = +uniqueid - UNIQUEID_START_VAL +UNIQUEID_START_ROWINDEX;
   return(row);
 }
 
@@ -54,7 +56,9 @@ var extractMatchOrThrowError = function(str, regexp, msg_empty_str, msg_nomatch_
     throw new Error(msg_empty_str);
   }
     
-  var re_match = new RegExp(regexp).exec(str); // RegExp.exec returns array if match (null if not). First element is matched string, following elements are matched groupings.
+  var re_match = new RegExp(regexp).exec(str);
+  // RegExp.exec returns array if match (null if not). 
+  // First element is matched string, following elements are matched groupings.
   if (!re_match){
     throw new Error(msg_nomatch_str);
   }
@@ -78,6 +82,7 @@ function formatDate(date) {
     return "None Given";
   } else {
     var dt = new Date(date);
-    return dt.getDate() + '/' + (dt.getMonth() + 1) +'/'+ dt.getFullYear( ); // DD/MM/YYYY
+    return dt.getDate() + '/' + (dt.getMonth() + 1) +'/'+ dt.getFullYear();
+    // DD/MM/YYYY
   }
 }

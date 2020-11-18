@@ -1,6 +1,6 @@
 // All custom global variable declarations are made here.
 
-var GlobalFuncHandle = this; // this is used to call functions by name (i.e. GlobalFuncHandle[funcName]();)
+var GlobalFuncHandle = this; // global scope
 
 function globalVariables(){
   var globvar = {
@@ -12,12 +12,18 @@ function globalVariables(){
     MOD_USERID: 'U0108S6B96X',
 
     FORMINDEX_CHANNEL: 8, // index of channel question in form submission json packet
-    SHEET_ROW_OFFSET: 0, // *relative* row offset of trigger sheet compared to form response sheet: rowIndex_triggerSheet = rowIndex_responseSheet + SHEET_ROW_OFFSET. This is used to find the right row in trigger sheet when a new form submission occurs.
+    SHEET_ROW_OFFSET: 0, // *relative* row offset of trigger sheet compared to form
+    // response sheet: rowIndex_triggerSheet = rowIndex_responseSheet + SHEET_ROW_OFFSET.
+    // This is used to find the right row in trigger sheet when a new 
+    // form submission occurs.
     UNIQUEID_START_VAL: 1000, // value of first uniqueid
-    UNIQUEID_START_ROWINDEX: 2, // row index of first uniqueid in tracking sheet. Used for quick row lookup based on uniqueid value.
+    UNIQUEID_START_ROWINDEX: 2, // row index of first uniqueid in tracking sheet.
+    // Used for quick row lookup based on uniqueid value.
 
-    // Tracking sheet column order. ie: first element is col 'A', second is col 'B', ...
-    // The strings need not match the actual sheet's header strings. They must match the strings called in the script functions.
+    // Tracking sheet column order. 
+    // ie: first element is col 'A', second is col 'B', ...
+    // The strings need not match the actual sheet's header strings.
+    // They must match the strings called in the script functions.
     SHEET_COL_ORDER: [
       "uniqueid",
       "timestamp",
@@ -55,7 +61,8 @@ function globalVariables(){
       "completionLastTimestamp",
       "completionLastDetails"],
     
-    // A key-value object to associate slack command strings to the command subclass that should be instantiated
+    // A key-value object to associate slack command strings to the command 
+    // subclass that should be instantiated.
     SUBCLASS_FROM_SLACKCMD: {
       'done_modal':DoneCommand,
       '/volunteer':VolunteerCommand,

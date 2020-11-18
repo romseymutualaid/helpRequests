@@ -22,7 +22,8 @@ class TrackingSheetWrapper {
   }
 
   getAllRows(){
-    // Return all the sheet's rows as an array of row objects. This is much faster than getting the data one row at a time.
+    // Return all the sheet's rows as an array of row objects.
+    // This is much faster than getting the data one row at a time.
     var rowArray2D = this.sheet.getDataRange().getValues();
     var rows = [];
     var myScope = this; // for use of current scope in forEach
@@ -42,14 +43,17 @@ class TrackingSheetWrapper {
   getRowByUniqueID(id){
     // Returns a row object based on uniqueid.
     return this.getRowByRowNumber(
-      getRowNumberByUniqueID(id, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX));
+      getRowNumberByUniqueID(
+        id, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX));
   }
   
   writeRow(row){
     // Writes a row object to the tracking sheet based on it's unique id.
     // "row" needs to contain a uniqueid.
-    // all other elements with keys in machine_writable_columns will be written to the sheet.
-    var rowNumber = getRowNumberByUniqueID(row.uniqueid, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX);
+    // all other elements with keys in machine_writable_columns will be written 
+    // to the sheet.
+    var rowNumber = getRowNumberByUniqueID(
+      row.uniqueid, this.UNIQUEID_START_VAL, this.UNIQUEID_START_ROWINDEX);
     var existingRow = this.getRowByUniqueID(row.uniqueid);
     if (existingRow.uniqueid != row.uniqueid){
       throw new Error(uniqueIDlookupIsCorruptedMessage(existingRow, row));
@@ -89,7 +93,8 @@ class LogSheetWrapper {
   }
   
   makeFormattedRow(msg){
-    return [new Date(), msg.uniqueid, msg.userid, msg.type, msg.subtype, msg.additionalInfo];
+    return [new Date(), msg.uniqueid, msg.userid, msg.type, msg.subtype,
+            msg.additionalInfo];
   }
 }
 
