@@ -1,28 +1,31 @@
-// A set of command models are defined here (Command subclasses).
-//
-// All models interface with the database (google sheets) and the view (slack API).
-// Models have a common Command.execute() method which:
-// - gets relevant data from the database
-// - validates command according to database state (throws error if command is not allowed)
-// - updates view and database as required
-//
-// See database functions in sheet_wrapper.gs.
-// See command validity functions in rowChecks.gs.
-// See view functions in slack_messaging.gs.
-
+/**
+ * @fileoverview A set of command models are defined here (Command subclasses).
+ *
+ * All models interface with the database (google sheets) and the view (slack API).
+ * Models have a common Command.execute() method which:
+ * - gets relevant data from the database
+ * - validates command according to database state (throws error if command is 
+ * not allowed)
+ * - updates view and database as required
+ *
+ * See database functions in sheet_wrapper.gs.
+ * See command validity functions in rowChecks.gs.
+ * See view functions in slack_messaging.gs.
+ */
 
 /*** CONSTRUCTORS ***/
 
 /**
- *  Return the appropriate Command subclass instance based on the specified slackCmdString and args parameters.
- * @param {*} slackCmdString
- * @param {*} args
+ * Return the appropriate Command subclass instance.
+ * @param {string} slackCmdString
+ * @param {object} args
  */
 var createCommandClassInstance = function(slackCmdString, args){
   
   var SUBCLASS_FROM_SLACKCMD = globalVariables().SUBCLASS_FROM_SLACKCMD;
   
-  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(slackCmdString)){ // if no key is found for slackCmdString, return error
+  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(slackCmdString)){
+    // if no key is found for slackCmdString, return error
     throw new Error(commandNotSupportedMessage(slackCmdString));
   }
   if (typeof SUBCLASS_FROM_SLACKCMD[slackCmdString] !== 'function'){
@@ -39,8 +42,7 @@ var createCommandClassInstance = function(slackCmdString, args){
 /*** LOGIC ***/
 
 /**
- *  The CommandArgs class encapsulates and formats the arguments passed to a ConcreteCommand,
- *  as well as methods to manipulate those args (parsing, etc.).
+ *  Argument object passed to a ConcreteCommand,
  */
 class CommandArgs {
   constructor(args){
@@ -62,14 +64,16 @@ class CommandArgs {
     var regexpToMatch = "^[0-9]{4}$";
     var msg_empty_str = uniqueIDnotProvidedMessage();
     var msg_nomatch_str = uniqueIDsyntaxIsIncorrectMessage(this);
-    extractMatchOrThrowError(this.uniqueid, regexpToMatch, msg_empty_str, msg_nomatch_str);
+    extractMatchOrThrowError(this.uniqueid, regexpToMatch, 
+                             msg_empty_str, msg_nomatch_str);
   }
   
   parseMentionString(){
     var regexpToMatch = "<@(U[A-Z0-9]+)\\|?(.*)>";
     var msg_empty_str = userMentionNotProvidedMessage();
     var msg_nomatch_str = userMentionSyntaxIsIncorrectMessage(this);
-    var re_match = extractMatchOrThrowError(this.mention.str, regexpToMatch, msg_empty_str, msg_nomatch_str);
+    var re_match = extractMatchOrThrowError(this.mention.str, regexpToMatch,
+                                            msg_empty_str, msg_nomatch_str);
     this.mention.userid = re_match[1];
     this.mention.username = re_match[2];
   }
@@ -81,7 +85,7 @@ class CommandArgs {
 
 
 /**
- *  The Command class is an abstract class inherited by all the ConcreteCommand subclasses
+ *  Abstract class for app commands.
  */
 class Command {
   constructor(args){
@@ -105,12 +109,14 @@ class Command {
   nextCommand(){
     // Default behaviour is that no further command is executed. 
     // However, some {command,arg} combinations lead to chained commands 
-    // example: {DoneCommand,this.requestNextStatus='keepOpenNew'}' triggers CancelCommand.
+    // example: {DoneCommand, this.requestNextStatus='keepOpenNew'}' triggers 
+    // CancelCommand.
   }
   
   execute(){
     this.tracking_sheet = new TrackingSheetWrapper();
-    this.log_sheet = new LogSheetWrapper(); //do not instantiate these in constructor because they take ~300ms and would compromise immediate response
+    this.log_sheet = new LogSheetWrapper(); //do not instantiate these in 
+    // constructor because they take ~300ms and compromise immediate response.
     this.getSheetData();
     this.checkCommandValidity();
     this.updateState();
@@ -295,7 +301,8 @@ class CancelCommand extends Command {
   }
   
   updateState(){
-    this.slackVolunteerID_old = this.row.slackVolunteerID; // store this for channel messenger in notify()
+    // store volunteerID_old for channel messenger in notify()
+    this.slackVolunteerID_old = this.row.slackVolunteerID;
     this.row.slackVolunteerID = '';
     this.row.slackVolunteerName = '';
     this.row.requestStatus = 'Sent';
@@ -325,7 +332,7 @@ class CancelCommand extends Command {
 /**
  *  Manage a done modal request from user or moderator
  */
-class DoneSendModalCommand extends Command { //todo: make this an async command so that it can pass back row information in modal
+class DoneSendModalCommand extends Command {
   
   parse(){
     this.args.parseUniqueID();
@@ -356,7 +363,8 @@ class DoneCommand extends Command {
   constructor(args){
     super(args);
     
-    this.immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
+    // modal requires a blank HTTP 200 OK immediate response (null) to close
+    this.immediateReturnMessage = null;
     this.loggerMessage.subtype='done';
     
     // done modal responses
@@ -383,7 +391,8 @@ class DoneCommand extends Command {
   }
   
   updateState(){
-    if ((this.requestNextStatus === '') || (this.requestNextStatus === 'unsure') || (this.requestNextStatus === 'toClose')){
+    if ((this.requestNextStatus === '') || (this.requestNextStatus === 'unsure')
+      || (this.requestNextStatus === 'toClose')){
       this.row.requestStatus = 'ToClose?';
     } else if (this.requestNextStatus === 'keepOpenAssigned'){
       this.row.requestStatus = "Assigned";
@@ -408,7 +417,7 @@ class DoneCommand extends Command {
     var return_message = channelMessenger.send(payload);
     
     // halt if message was not successfully sent
-    if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
+    if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
     
