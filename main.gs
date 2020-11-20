@@ -33,7 +33,7 @@ function doPost(e) {
  * see https://developers.google.com/apps-script/guides/triggers/installable
  * @param {*} e The event object.
  */
-function doTriggered(e){
+function doTriggered(e) {
   var sheetEvent = createSheetEventClassInstance(e);
   try{
     var message = sheetEvent.handle();
