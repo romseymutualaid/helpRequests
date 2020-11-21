@@ -236,7 +236,8 @@ class AssignCommand extends Command {
     return assignPendingMessage();
   }
   
-  nextCommand(){  
+  nextCommand(){
+    this.args.cmd_name = "/volunteer";
     processFunctionAsync('/volunteer', this.args); // todo: clean up string call
   }
 }

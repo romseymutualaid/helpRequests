@@ -114,7 +114,7 @@ class SheetEventController {
     };
     
     this.cmd = new VoidCommand(args); // Command class instance returned by 
-    // createCommandClassInstance(this.subtype, args)
+    // createCommandClassInstance(args)
     
     this.SlackMessengerBehaviour = new VoidMessenger(this.cmd);
   }
@@ -135,10 +135,9 @@ class TimedTriggerSheetEventController extends SheetEventController {
   constructor(e){
     super();
     
-    var [cmdName, args] = handleTriggered(e.triggerUid);
+    var [, args] = handleTriggered(e.triggerUid);
     
-    this.subtype = cmdName;
-    this.cmd = createCommandClassInstance(this.subtype, args);
+    this.cmd = createCommandClassInstance(args);
     
     this.SlackMessengerBehaviour = new SlackUserAsyncMessenger(this.cmd);
   }
@@ -148,11 +147,10 @@ class CommandFormSubmitSheetEventController extends SheetEventController {
   constructor(e){
     super();
     
-    var [timestamp, cmdName, args_str] = e.values;
+    var [timestamp, , args_str] = e.values;
     var args = JSON.parse(args_str);
     
-    this.subtype = cmdName;
-    this.cmd = createCommandClassInstance(this.subtype, args);
+    this.cmd = createCommandClassInstance(args);
     
     this.SlackMessengerBehaviour = new SlackUserAsyncMessenger(this.cmd);
   }
