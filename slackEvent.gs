@@ -17,7 +17,7 @@
  * For details on slack events see https://api.slack.com/interactivity/
  * @param {*} e
  */
-var createSlackEventClassInstance = function(e) {
+var createSlackEvent = function(e) {
   // extract event message body
   var par = e.parameter;
   
@@ -28,6 +28,12 @@ var createSlackEventClassInstance = function(e) {
   } else{ // this is a slack slash command event
     return new SlackSlashCommandEventController(par);
   }
+}
+
+var runSlackEvent = function(slackEvent) {
+  slackEvent.parse();
+  var messageToUser = slackEvent.handle();
+  return messageToUser;
 }
 
 

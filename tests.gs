@@ -7,22 +7,24 @@ function gast() {
   
   var test = new GasTap()
   
+  gast_test_positive_controls(test);
+  gast_test_doPost(test);
+//  gast_test_doTriggered(test);
+  
+  test.finish()
+}
+
+function gast_test_positive_controls(test) {
   test('do calculation right', function (t) {
     var i = 3 + 4
     t.equal(i, 7, 'calc 3 + 4 = 7 right')
   })
   
   test('Spreadsheet exist', function (t) {
-    t.skip();
     var url = 'https://docs.google.com/spreadsheets/d/1_KRAtoDz2Pdcj9IPZI007I_gMzRyfmXf7gicgxVwYJc/edit#gid=0'
     var ss = SpreadsheetApp.openByUrl(url)
     t.ok(ss, 'open spreadsheet successful')
   })
-  
-  gast_test_doPost(test);
-  gast_test_doTriggered(test);
-  
-  test.finish()
 }
 
 function gast_test_doPost(test) {
@@ -100,7 +102,11 @@ function gast_test_doPost(test) {
 
 function gast_test_doTriggered(test) {
   // test command form submit event
-  
+  test("returns ack if command form submit", function(t){
+    var e = {
+      triggerUid: 0 // need to refactor so that we can pass a subclass directly
+    }
+  })
   // test request form submit event
   
   // test edit tracking sheet event
