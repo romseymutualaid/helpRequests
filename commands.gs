@@ -17,25 +17,24 @@
 
 /**
  * Return the appropriate Command subclass instance.
- * @param {string} slackCmdString
  * @param {object} args
  */
-var createCommandClassInstance = function(slackCmdString, args){
-  
+var createCommandClassInstance = function(args){
+  var type = args.cmd_name;
   var SUBCLASS_FROM_SLACKCMD = globalVariables().SUBCLASS_FROM_SLACKCMD;
   
-  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(slackCmdString)){
-    // if no key is found for slackCmdString, return error
-    throw new Error(commandNotSupportedMessage(slackCmdString));
+  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(type)){
+    // if no key is found for type, return error
+    throw new Error(commandNotSupportedMessage(type));
   }
-  if (typeof SUBCLASS_FROM_SLACKCMD[slackCmdString] !== 'function'){
-    throw new Error(commandNotConnectedMessage(slackCmdString));
+  if (typeof SUBCLASS_FROM_SLACKCMD[type] !== 'function'){
+    throw new Error(commandNotConnectedMessage(type));
   }
   if (typeof args !== 'object' || args === null){
     throw new Error(commandArgumentsAreCorruptedMessage());
   }
   
-  return new SUBCLASS_FROM_SLACKCMD[slackCmdString](args);
+  return new SUBCLASS_FROM_SLACKCMD[type](args);
 }
 
 
@@ -46,6 +45,7 @@ var createCommandClassInstance = function(slackCmdString, args){
  */
 class CommandArgs {
   constructor(args){
+    this.cmd_name = args.cmd_name;
     this.uniqueid = args.uniqueid;
     this.channelid = args.channelid;
     this.userid = args.userid;
