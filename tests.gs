@@ -8,10 +8,29 @@ function gast() {
   var test = new GasTap()
   
   gast_test_positive_controls(test);
-  gast_test_doPost(test);
+//  gast_test_doPost(test);
+  gast_test_slackEvent(test);
 //  gast_test_doTriggered(test);
   
   test.finish()
+}
+
+var try_return = function(func, ...args){
+  try {
+    return func(...args);
+  }
+  catch(errObj) {
+    return errObj.message;
+  }
+}
+
+var try_constructor_return = function(className, ...args){
+  try {
+    return new className(...args);
+  }
+  catch(errObj) {
+    return errObj.message;
+  }
 }
 
 function gast_test_positive_controls(test) {
@@ -98,6 +117,63 @@ function gast_test_doPost(test) {
     }};
     t.equal(doPost(e).getContent(), null, "done_modal");
   });
+}
+
+function gast_test_slackEvent(test) {
+  var token_true = PropertiesService.getScriptProperties().getProperty(
+    'VERIFICATION_TOKEN');
+  var teamid_true = globalVariables()['TEAM_ID'];
+  var accepted_types = ['view_submission', 'command'];
+  
+  test("throws if auth failure", function(t) {
+    t.equal(
+      try_constructor_return(
+        SlackEventController,
+        token = "incorrect_token_placeholder",
+        teamid = teamid_true,
+        type = accepted_types[0],
+        cmd = new VoidCommand(args = {})
+      ),
+      slackTokenIsIncorrectMessage("incorrect_token_placeholder"),
+      "incorrect token"
+    );
+    
+    t.equal(
+      try_constructor_return(
+        SlackEventController,
+        token = token_true,
+        teamid = "incorrect_teamid_placeholder",
+        type = accepted_types[0],
+        cmd = new VoidCommand(args = {})
+      ),
+      slackWorspaceIsIncorrectMessage(),
+      "incorrect teamid"
+    );
+    
+    t.equal(
+      try_constructor_return(
+        SlackEventController,
+        token = token_true,
+        teamid = teamid_true,
+        type = "incorrect_type_placeholder",
+        cmd = new VoidCommand(args = {})
+      ),
+      slackEventTypeIsIncorrectMessage("incorrect_type_placeholder"),
+      "incorrect type"
+    );
+  })
+  
+  test("returns void if auth success and voidcommand", function(t) {
+    for(var i=0; i < accepted_types.length; i++) {
+      slackEvent = new SlackEventController(
+        token = token_true,
+        teamid = teamid_true,
+        type = accepted_types[i],
+        cmd = new VoidCommand(args = {})
+      );
+      t.ok(slackEvent.handle() === undefined, `type ${accepted_types[i]}`);
+    }
+  })
 }
 
 function gast_test_doTriggered(test) {

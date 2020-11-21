@@ -124,7 +124,7 @@ class Command {
     }
     if (async) {
       var immediateReturnMessage = this.immediateReturnMessage;
-      processFunctionAsync(this.args.cmd_name, this.args);
+      processFunctionAsync(this.args);
     } else {
       var immediateReturnMessage = this.execute();
     }
@@ -149,6 +149,8 @@ class Command {
  *  Handler for a "do nothing" command
  */
 class VoidCommand extends Command {
+  run(async) {}
+  execute() {}
 }
 
 
@@ -238,7 +240,7 @@ class AssignCommand extends Command {
   
   nextCommand(){
     this.args.cmd_name = "/volunteer";
-    processFunctionAsync('/volunteer', this.args); // todo: clean up string call
+    processFunctionAsync(this.args); // todo: clean up string call
   }
 }
 
@@ -451,7 +453,8 @@ class DoneCommand extends Command {
   
   nextCommand(){
     if (this.requestNextStatus === 'keepOpenNew'){
-      processFunctionAsync('/cancel', this.args); //todo:clean up string call
+      this.args.cmd_name = "/cancel" //todo:clean up string call
+      processFunctionAsync(this.args);
     }
   }
 }

@@ -15,7 +15,7 @@
 function doPost(e) {
   try{
     var slackEvent = createSlackEvent(e);
-    var messageToUser = runSlackEvent(slackEvent);
+    var messageToUser = slackEvent.handle();
     return contentServerJsonReply(messageToUser);
   }
   catch(errObj){

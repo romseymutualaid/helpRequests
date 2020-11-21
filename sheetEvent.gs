@@ -96,10 +96,6 @@ var createEditSheetEventClassInstance = function(e){
 
 class SheetEventController {
   constructor(e){
-    // class template
-
-    this.subtype=null; // describes the lower level type of event
-    // (slash command name, interactive message subtype, ...).
 
     var args={
       channelid:null, // channel_id that event originates from

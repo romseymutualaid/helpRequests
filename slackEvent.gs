@@ -1,13 +1,9 @@
-// Unpack and process slack event objects.
-//
-// Events are routed to a specific SlackEventController subclass.
-// The SlackEventController subclass has a Command model behaviour that it calls
-// synchronously (.execute() method) or asynchronously (handle_async.gs).
-//
-// Slack events currently supported:
-// - slash commands (/volunteer, /cancel, etc.)
-// - interactive messages (modals)
-
+/**
+ * @fileoverview Unpack and process slack event objects.
+ * Events objects are fed to SlackEventController through
+ * an appropriate adapter function.
+ * SlackEventController parses and runs the event.
+ */
 
 /*** CONSTRUCTORS ***/
 
@@ -20,12 +16,6 @@ var createSlackEvent = function(e) {
   var adapter = getEventAdapter(e);
   var {token, teamid, type, cmd} = adapter(e.parameter);
   return new SlackEventController(token, teamid, type, cmd);
-}
-
-var runSlackEvent = function(slackEvent) {
-  slackEvent.parse();
-  var messageToUser = slackEvent.handle();
-  return messageToUser;
 }
 
 /**
@@ -109,6 +99,8 @@ class SlackEventController {
     this.teamid = teamid; // Slack workspace id.
     this.type = type; // Event type (slash command, interactive message, ...).
     this.cmd = cmd; // Command object.
+    
+    this.parse();
   }
   
   parse() {
