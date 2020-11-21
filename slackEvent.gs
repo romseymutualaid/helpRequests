@@ -104,39 +104,16 @@ var slackSlashCommandAdapter = function(par) {
 class SlackEventController {
   // Controller for slack doPost events
   
-  constructor(token, teamid, type, cmd){
-    // class template
-    
-    this.token = token; // slack app verification token string
-    this.teamid = teamid; // slack workspace id
-    
-    this.type = type; // describes the high level type of event 
-    // (slash command, interactive message, ...)
-    
-    //    this.subtype=null; // describes the lower level type of event
-    //    // (slash command name, interactive message subtype, ...)
-    //
-    //    var args={
-    //      channelid:null, // channel_id that event originates from
-    //      userid:null, // user_id from whom the event originates
-    //      username:null, // (optional) user_name associated to this.userid
-    //      response_url:null, // POST url to provide delayed response to user
-    //      trigger_id:null, // needed to generate interactive messages in 
-    //      // response to event
-    //      uniqueid:null, // (optional) help request number
-    //      mention:{str:null, userid:null, username:null}, // (optional) 
-    //      // markdown-formatted mention name
-    //      more:null // (optional) space for extra arguments
-    //    };
-    
-    this.cmd = cmd; // Command class instance returned by 
-    // createCommandClassInstance(this.subtype, args)
+  constructor(token, teamid, type, cmd){    
+    this.token = token; // Slack app verification token.
+    this.teamid = teamid; // Slack workspace id.
+    this.type = type; // Event type (slash command, interactive message, ...).
+    this.cmd = cmd; // Command object.
   }
   
-  parse(){
+  parse() {
     // Fetch validation variables
-    var globvar = globalVariables();
-    var teamid_true =  globvar['TEAM_ID'];
+    var teamid_true =  globalVariables()['TEAM_ID'];
     var token_true = PropertiesService.getScriptProperties().getProperty(
       'VERIFICATION_TOKEN'); // expected slack API verification token.
     var accepted_types = ['view_submission', 'command'];
@@ -150,12 +127,12 @@ class SlackEventController {
     }
     
     // Check request originates from our slack workspace
-    if (this.teamid != teamid_true){
+    if (this.teamid !== teamid_true){
       throw new Error(slackWorspaceIsIncorrectMessage());
     }
     
     // Check syntax of this.type
-    if(!isVarInArray(this.type,accepted_types)){
+    if(!isVarInArray(this.type, accepted_types)){
       throw new Error(slackEventTypeIsIncorrectMessage(this.type));
     }
     
@@ -163,18 +140,8 @@ class SlackEventController {
     this.cmd.parse();
   }
   
-  handle(){
-    // Process Command
-    
-    if (isVarInArray(this.cmd.args.cmd_name, globalVariables()["SYNC_COMMANDS"])){
-      // Handle Sync
-      var immediateReturnMessage = this.cmd.execute(); 
-    } else {
-      // Handle Async
-      var immediateReturnMessage = this.cmd.immediateReturnMessage;
-      processFunctionAsync(this.cmd.args.cmd_name, this.cmd.args);
-    }
-    
+  handle() {
+    var immediateReturnMessage = this.cmd.run();    
     return immediateReturnMessage;
   }
 }

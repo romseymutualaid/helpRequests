@@ -113,6 +113,24 @@ class Command {
     // CancelCommand.
   }
   
+  /**
+   * Run Command sync or async.
+   * @param {bool, optional} async If true, run async. If false, run sync.
+   *   default: True if this.args.cmd_name is not in globalVariables()["SYNC_COMMANDS"].
+   */
+  run(async) {
+    if (async === undefined) {
+      async = !isVarInArray(this.args.cmd_name, globalVariables()["SYNC_COMMANDS"]);
+    }
+    if (async) {
+      var immediateReturnMessage = this.immediateReturnMessage;
+      processFunctionAsync(this.args.cmd_name, this.args);
+    } else {
+      var immediateReturnMessage = this.execute();
+    }
+    return immediateReturnMessage;
+  }
+  
   execute(){
     this.tracking_sheet = new TrackingSheetWrapper();
     this.log_sheet = new LogSheetWrapper(); //do not instantiate these in 
