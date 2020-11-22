@@ -8,9 +8,12 @@ function gast() {
   var test = new GasTap()
   
   gast_test_positive_controls(test);
-  gast_test_doPost(test);
+//  gast_test_doPost(test);
+//  gast_test_slackEventAdapters(test);
   gast_test_slackEvent(test);
-//  gast_test_doTriggered(test);
+//  gast_test_sheetEventAdapters(test);
+  gast_test_sheetEvent(test);
+  gast_test_commands(test);
   
   test.finish()
 }
@@ -119,6 +122,9 @@ function gast_test_doPost(test) {
   });
 }
 
+function gast_test_slackEventAdapters(test) {
+}
+
 function gast_test_slackEvent(test) {
   var token_true = PropertiesService.getScriptProperties().getProperty(
     'VERIFICATION_TOKEN');
@@ -176,14 +182,96 @@ function gast_test_slackEvent(test) {
   })
 }
 
-function gast_test_doTriggered(test) {
+function gast_test_sheetEventAdapters(test) {
   // test command form submit event
-  test("returns ack if command form submit", function(t){
-    var e = {
-      triggerUid: 0 // need to refactor so that we can pass a subclass directly
-    }
-  })
+
   // test request form submit event
   
   // test edit tracking sheet event
+}
+
+function gast_test_sheetEvent(test) {
+  test("returns void if void input", function(t) {
+    sheetEvent = new SheetEventController();
+    t.ok(sheetEvent.handle() === undefined, "voidcommand");
+    t.ok(sheetEvent.notify(undefined) === undefined, "voidmessenger");
+  })
+}
+
+function gast_test_commands(test) {
+  class MockSheet {
+    constructor(arr2d) {
+      this.arr2d = arr2d !== undefined ? arr2d : [[]];
+      this.arr2d_nrows = this.arr2d.length;
+      this.arr2d_ncols = this.arr2d[0].length;
+    }
+    
+    getDataRange() {
+      return this.getRange(1, 1, this.arr2d_nrows, this.arr2d_ncols);
+    }
+    
+    getRange(row, column, numRows=1, numColumns=1) {
+      // row, colum are 1-indexed
+      return new MockRange(this.arr2d, [row, column, numRows, numColumns]);
+    }
+    
+    appendRow(row) {
+      if (this.arr2d.length == 1 && this.arr2d[0].length == 0) {
+        // empty arr
+        this.arr2d[0] = row;
+      } else {
+        this.arr2d.push(row);
+      }
+    }
+  }
+  
+  class MockRange {
+    constructor(arr2d, range) {
+      this.arr2d = arr2d;
+      this.arr2d_nrows = this.arr2d.length;
+      this.arr2d_ncols = this.arr2d[0].length;
+      this.range = (
+        range !== undefined 
+        ? range : [1, 1, this.arr2d_nrows, this.arr2d_ncols]
+      );
+    }
+    
+    getValue() {
+    }
+    
+    setValue(value) {
+    }
+    
+    getValues() {
+      return (
+        this.arr2d
+        .slice(row - 1, row - 1 + numRows)
+        .map(i => i.slice(column - 1, column - 1 + numColumns))
+      );
+    }
+    
+    setValues(values) {
+    }
+  }
+  
+  test("status log command", function(t) {
+    var cmd = new StatusLogCommand({
+      uniqueid: 1000,
+      userid: "test_userid",
+      more: "new_status_val"
+    });
+    var msg = cmd.execute(
+      new TrackingSheetWrapper(new MockSheet()),
+      new LogSheetWrapper(new MockSheet())
+    );
+    t.ok(msg === undefined, "returns void");
+    t.deepEqual(cmd.tracking_sheet.sheet.arr2d, [[]], "tracking sheet no side-effect");
+    t.deepEqual(
+      cmd.log_sheet.sheet.arr2d[0].slice(1, ),
+      [1000, "test_userid", "command", "statusManualEdit", "new_status_val"],
+      "log sheet row append"
+    );
+      
+      
+  })
 }

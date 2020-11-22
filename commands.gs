@@ -131,10 +131,14 @@ class Command {
     return immediateReturnMessage;
   }
   
-  execute(){
-    this.tracking_sheet = new TrackingSheetWrapper();
-    this.log_sheet = new LogSheetWrapper(); //do not instantiate these in 
-    // constructor because they take ~300ms and compromise immediate response.
+  execute(trackingSheet, logSheet){
+    // Do not instantiate sheets in constructor
+    // because they take ~300ms and compromise immediate response.
+    this.tracking_sheet = (
+      trackingSheet !== undefined ? trackingSheet : new TrackingSheetWrapper());
+    this.log_sheet = (
+      logSheet !== undefined ? logSheet : new LogSheetWrapper());
+
     this.getSheetData();
     this.checkCommandValidity();
     this.updateState();
