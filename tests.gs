@@ -8,7 +8,7 @@ function gast() {
   var test = new GasTap()
   
   gast_test_positive_controls(test);
-//  gast_test_doPost(test);
+  gast_test_doPost(test);
   gast_test_slackEvent(test);
 //  gast_test_doTriggered(test);
   

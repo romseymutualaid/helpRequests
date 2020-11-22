@@ -33,7 +33,7 @@ function doPost(e) {
  * @param {*} e The event object.
  */
 function doTriggered(e) {
-  var sheetEvent = createSheetEventClassInstance(e);
+  var sheetEvent = createSheetEvent(e);
   try{
     var message = sheetEvent.handle();
     sheetEvent.notify(message);
