@@ -5,7 +5,7 @@ function gast() {
     ).getContentText())
   } // Class GasTap is ready for use now!
   
-  var test = new GasTap()
+  var test = new GasTap();
   
   gast_test_positive_controls(test);
 //  gast_test_doPost(test);
@@ -228,21 +228,23 @@ function gast_test_commands(test) {
   class MockRange {
     constructor(arr2d, range) {
       this.arr2d = arr2d;
-      this.arr2d_nrows = this.arr2d.length;
-      this.arr2d_ncols = this.arr2d[0].length;
       this.range = (
         range !== undefined 
-        ? range : [1, 1, this.arr2d_nrows, this.arr2d_ncols]
+        ? range : [1, 1, arr2d.length, arr2d[0].length]
       );
     }
     
     getValue() {
+      var [row, column, , ] = this.range;
+      return this.arr2d[row - 1][column - 1];
     }
     
     setValue(value) {
+      this.arr2d[row - 1][column - 1] = value;
     }
     
     getValues() {
+      var [row, column, numRows, numColumns] = this.range;
       return (
         this.arr2d
         .slice(row - 1, row - 1 + numRows)
@@ -251,10 +253,47 @@ function gast_test_commands(test) {
     }
     
     setValues(values) {
+      for (var i = 0; i < numRows; i++) {
+        for (var j = 0; j < numColumns; j++) {
+          this.arr2d[i + row - 1][j + column - 1] = values[i][j];
+        }
+      }
     }
   }
   
-  test("status log command", function(t) {
+  var mock_tracking_sheet = new TrackingSheetWrapper(
+    new MockSheet([
+      [
+        "uniqueID", "time", "name", "contact", "address", "household_sit",
+        "request", "date_needed", "additional_info", "channel", "general_needs",
+        "coordinator_name", "slack_comments", "status", "slack_thread_url",
+        "slack_thread_ts", "coordinator_comments", "volunteer", "channel_id",
+        "volunteer_id", "completion_count", "completion_last_time",
+        "completion_last_details", "next_date_needed"
+      ],
+      [
+        1000, "14/04/2020 01:19:12", "test case 10", "01223 123456", "1 stockwell st",
+        "high-risk", "dog walks", "14/04/2020", "", "testsrequests-jb", "shopping",
+        "jb", "", "Closed",
+        "https://romseymutualaid.slack.com/archives/C012HGQEJMB/p1589019210000200",
+        "1589019210.000200", "", "baye.james", "C012HGQEJMB", "UVDT8G78T", 13,
+        "Sat May 23 2020 02:44:39 GMT+0100 (British Summer Time)", "", ""
+      ],
+      [
+        1001, "14/04/2020 01:40:22", "test case 11", "07111222333", "1 argyle st",
+        "covid symptoms", "parcel collection", "15/04/2020", "", "testsrequests-jb", "",
+        "jb", "", "ToClose?",
+        "https://romseymutualaid.slack.com/archives/C012HGQEJMB/p1591654103007100",
+        "1591654103.007100", "", "judefbrady", "C012HGQEJMB", "UVCNQASN6", 1,
+        "10/06/2020 13:57:22", "coffee required", ""
+      ],
+      [],
+      [],
+      []
+    ])
+  );
+ 
+  test("statusLog command", function(t) {
     var cmd = new StatusLogCommand({
       uniqueid: 1000,
       userid: "test_userid",
@@ -267,11 +306,20 @@ function gast_test_commands(test) {
     t.ok(msg === undefined, "returns void");
     t.deepEqual(cmd.tracking_sheet.sheet.arr2d, [[]], "tracking sheet no side-effect");
     t.deepEqual(
-      cmd.log_sheet.sheet.arr2d[0].slice(1, ),
+      cmd.log_sheet.sheet.arr2d[0].slice(1),
       [1000, "test_userid", "command", "statusManualEdit", "new_status_val"],
       "log sheet row append"
     );
-      
-      
   })
+  
+  test("postRequest command", function(t) {
+    var cmd = new PostRequestCommand({
+      uniqueid: 1000
+    });
+    cmd.tracking_sheet = mock_tracking_sheet;
+    cmd.getSheetData();
+    t.equal(cmd.row.uniqueid, 1000);
+  })
+    
+    
 }

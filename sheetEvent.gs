@@ -99,6 +99,13 @@ var getEditTrackingSheetEventAdapter = function(e) {
   }
 }
 
+var ignoreSheetEventAdapter = function(e) {
+  return {
+    cmd: undefined,
+    messenger: undefined
+  };
+}
+
 var timedTriggerSheetEventAdapter = function(e) {
   var [, args] = handleTriggered(e.triggerUid);
   var cmd = createCommandClassInstance(args);
@@ -174,11 +181,4 @@ class SheetEventController {
   notify(msg){
     this.messenger.send(msg);
   }
-}
-
-var ignoreSheetEventAdapter = function(e) {
-  return {
-    cmd: undefined,
-    messenger: undefined
-  };
 }
