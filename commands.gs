@@ -105,7 +105,7 @@ class Command {
   getSheetData(){}
   checkCommandValidity(){}
   updateState(){}
-  notify(){}
+  notify(messenger){}
   nextCommand(){
     // Default behaviour is that no further command is executed. 
     // However, some {command,arg} combinations lead to chained commands 
@@ -131,7 +131,7 @@ class Command {
     return immediateReturnMessage;
   }
   
-  execute(trackingSheet, logSheet){
+  execute(trackingSheet, logSheet, messenger){
     // Do not instantiate sheets in constructor
     // because they take ~300ms and compromise immediate response.
     this.tracking_sheet = (
@@ -142,7 +142,7 @@ class Command {
     this.getSheetData();
     this.checkCommandValidity();
     this.updateState();
-    var returnMessage = this.notify();
+    var returnMessage = this.notify(messenger);
     this.nextCommand();
     return returnMessage;
   }
@@ -168,7 +168,7 @@ class StatusLogCommand extends Command {
     this.loggerMessage.additionalInfo=this.args.more;
   }
   
-  notify(){
+  notify(messenger){
     this.log_sheet.appendFormattedRow(this.loggerMessage);
   }
 }
@@ -187,12 +187,12 @@ class PostRequestCommand extends Command {
     this.row = this.tracking_sheet.getRowByUniqueID(this.args.uniqueid);
   }
   
-  notify(){
+  notify(messenger){
     
     // slack channel messenger
+    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
     var payload = postRequestMessage(this.row);
-    var channelMessenger = new SlackChannelMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    var return_message = messenger.send(payload);
   
     // tracking sheet writer
     var return_params = JSON.parse(return_message);

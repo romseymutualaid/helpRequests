@@ -211,7 +211,6 @@ function gast_test_commands(test) {
     }
     
     getRange(row, column, numRows=1, numColumns=1) {
-      // row, colum are 1-indexed
       return new MockRange(this.arr2d, [row, column, numRows, numColumns]);
     }
     
@@ -240,6 +239,7 @@ function gast_test_commands(test) {
     }
     
     setValue(value) {
+      var [row, column, , ] = this.range;
       this.arr2d[row - 1][column - 1] = value;
     }
     
@@ -261,8 +261,19 @@ function gast_test_commands(test) {
     }
   }
   
-  var mock_tracking_sheet = new TrackingSheetWrapper(
-    new MockSheet([
+  class MockSuccessMessenger {
+    send() {
+      return JSON.stringify({ok: true});
+    }
+  }
+  class MockFailMessenger {
+    send() {
+      return JSON.stringify({ok: false});
+    }
+  }
+  
+  var mock_tracking_array = function() {
+    return [
       [
         "uniqueID", "time", "name", "contact", "address", "household_sit",
         "request", "date_needed", "additional_info", "channel", "general_needs",
@@ -290,8 +301,8 @@ function gast_test_commands(test) {
       [],
       [],
       []
-    ])
-  );
+    ];
+  }
  
   test("statusLog command", function(t) {
     var cmd = new StatusLogCommand({
@@ -303,22 +314,36 @@ function gast_test_commands(test) {
       new TrackingSheetWrapper(new MockSheet()),
       new LogSheetWrapper(new MockSheet())
     );
-    t.ok(msg === undefined, "returns void");
-    t.deepEqual(cmd.tracking_sheet.sheet.arr2d, [[]], "tracking sheet no side-effect");
+    t.deepEqual(cmd.tracking_sheet.sheet.arr2d, [[]], "no tracking sheet side-effect");
     t.deepEqual(
       cmd.log_sheet.sheet.arr2d[0].slice(1),
       [1000, "test_userid", "command", "statusManualEdit", "new_status_val"],
-      "log sheet row append"
+      "logs new status"
     );
   })
   
-  test("postRequest command", function(t) {
+  test("postRequest command success", function(t) {
     var cmd = new PostRequestCommand({
       uniqueid: 1000
     });
-    cmd.tracking_sheet = mock_tracking_sheet;
-    cmd.getSheetData();
-    t.equal(cmd.row.uniqueid, 1000);
+    cmd.execute(new TrackingSheetWrapper(new MockSheet(mock_tracking_array())),
+                new LogSheetWrapper(new MockSheet()),
+                new MockSuccessMessenger());
+    t.equal(cmd.row.uniqueid, 1000, "correct uniqueid");
+    t.equal(cmd.row.requestStatus, "Sent", "status is Sent");
+    t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1000, "logs uniqueid");
+  })
+  
+  test("postRequest command failure", function(t) {
+    var cmd = new PostRequestCommand({
+      uniqueid: 1000
+    });
+    cmd.execute(new TrackingSheetWrapper(new MockSheet(mock_tracking_array())),
+                new LogSheetWrapper(new MockSheet()),
+                new MockFailMessenger());
+    t.equal(cmd.row.uniqueid, 1000, "correct uniqueid");
+    t.equal(cmd.row.requestStatus, "FailSend", "status is FailSend");
+    t.deepEqual(cmd.log_sheet.sheet.arr2d, [[]], "no log");
   })
     
     
