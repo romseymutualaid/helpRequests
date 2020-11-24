@@ -434,12 +434,12 @@ class DoneCommand extends Command {
     checkRowAcceptsDone(this.row, this.args);
   }
   
-  notify(){
+  notify(messenger){
     
     // slack channel messenger
     var payload = doneChannelMessage(this.row);
-    var channelMessenger = new SlackChannelMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
+    var return_message = messenger.send(payload);
     
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
@@ -452,7 +452,7 @@ class DoneCommand extends Command {
     this.log_sheet.appendFormattedRow(this.loggerMessage);
     
     // user return message printer
-    return doneSuccessMessage(this.row,true);
+    return doneSuccessMessage(this.row, true);
   }
   
   nextCommand(){

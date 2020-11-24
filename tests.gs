@@ -309,9 +309,6 @@ function gast_test_commands(test) {
         "1591654103.007100", "", "judefbrady", "C012HGQEJMB", "UVCNQASN6", 1,
         "10/06/2020 13:57:22", "coffee required", ""
       ],
-      [],
-      [],
-      []
     ];
   }
  
@@ -420,7 +417,30 @@ function gast_test_commands(test) {
     );
   })
   
-  
+  test("done command success", function(t) {
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockSuccessMessenger();   
     
+    var cmd = new DoneCommand(
+      {
+        uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6",
+        more: {requestNextStatus: {requestNextStatusVal: {selected_option: {value: ""}}}}
+      });
+    var msg = cmd.execute(tracking_sheet, log_sheet, messenger);
+    t.equal(msg, doneSuccessMessage(cmd.row, true), "returns success message");
+    t.equal(cmd.row.uniqueid, "1001", "correct uniqueid");
+    t.equal(cmd.row.requestStatus, "ToClose?", "status is ToClose?");
+    t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1001, "logs uniqueid");
+  })
+  
+  test("list command success", function(t) {
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    
+    var cmd = new ListCommand({channelid: "C012HGQEJMB", userid: "UVCNQASN6"});
+    var msg = cmd.execute(tracking_sheet, log_sheet);
+    t.ok(msg, "returns a message");
+  })
     
 }
