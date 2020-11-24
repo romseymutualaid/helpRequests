@@ -279,12 +279,12 @@ class VolunteerCommand extends Command {
     this.row.requestStatus = "Assigned";
   }
   
-  notify(){
+  notify(messenger){
     
     // slack channel messenger
     var payload = volunteerChannelMessage(this.row);
-    var channelMessenger = new SlackChannelMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
+    var return_message = messenger.send(payload);
     
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
@@ -333,12 +333,12 @@ class CancelCommand extends Command {
     this.row.requestStatus = 'Sent';
   }
   
-  notify(){
+  notify(messenger){
     
     // slack channel messenger
     var payload = cancelChannelMessage(this.row,this.slackVolunteerID_old);                                                                                                           
-    var channelMessenger = new SlackChannelMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
+    var return_message = messenger.send(payload);
     
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
@@ -363,12 +363,12 @@ class DoneSendModalCommand extends Command {
     this.args.parseUniqueID();
   }
   
-  notify(){
+  notify(messenger){
     
     // Send post request to Slack views.open API to open a modal for user
     var payload = doneModalMessage(this.args);
-    var modalMessenger = new SlackModalMessenger(this);
-    var return_message = modalMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackModalMessenger(this);
+    var return_message = messenger.send(payload);
   
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){

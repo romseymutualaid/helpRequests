@@ -36,6 +36,15 @@ var try_constructor_return = function(className, ...args){
   }
 }
 
+var try_method_return = function(className, methodName, ...args){
+  try {
+    return className[methodName](...args);
+  }
+  catch(errObj) {
+    return errObj.message;
+  }
+}
+
 function gast_test_positive_controls(test) {
   test('do calculation right', function (t) {
     var i = 3 + 4
@@ -235,6 +244,7 @@ function gast_test_commands(test) {
     
     getValue() {
       var [row, column, , ] = this.range;
+      if (row-1 >= this.arr2d.length) return "";
       return this.arr2d[row - 1][column - 1];
     }
     
@@ -245,6 +255,7 @@ function gast_test_commands(test) {
     
     getValues() {
       var [row, column, numRows, numColumns] = this.range;
+      if (row > this.arr2d.length) return emptyStringArray(numRows, numColumns);
       return (
         this.arr2d
         .slice(row - 1, row - 1 + numRows)
@@ -285,7 +296,7 @@ function gast_test_commands(test) {
       [
         1000, "14/04/2020 01:19:12", "test case 10", "01223 123456", "1 stockwell st",
         "high-risk", "dog walks", "14/04/2020", "", "testsrequests-jb", "shopping",
-        "jb", "", "Closed",
+        "jb", "", "Sent",
         "https://romseymutualaid.slack.com/archives/C012HGQEJMB/p1589019210000200",
         "1589019210.000200", "", "baye.james", "C012HGQEJMB", "UVDT8G78T", 13,
         "Sat May 23 2020 02:44:39 GMT+0100 (British Summer Time)", "", ""
@@ -293,7 +304,7 @@ function gast_test_commands(test) {
       [
         1001, "14/04/2020 01:40:22", "test case 11", "07111222333", "1 argyle st",
         "covid symptoms", "parcel collection", "15/04/2020", "", "testsrequests-jb", "",
-        "jb", "", "ToClose?",
+        "jb", "", "Assigned",
         "https://romseymutualaid.slack.com/archives/C012HGQEJMB/p1591654103007100",
         "1591654103.007100", "", "judefbrady", "C012HGQEJMB", "UVCNQASN6", 1,
         "10/06/2020 13:57:22", "coffee required", ""
@@ -306,7 +317,7 @@ function gast_test_commands(test) {
  
   test("statusLog command", function(t) {
     var cmd = new StatusLogCommand({
-      uniqueid: 1000,
+      uniqueid: "1000",
       userid: "test_userid",
       more: "new_status_val"
     });
@@ -317,34 +328,99 @@ function gast_test_commands(test) {
     t.deepEqual(cmd.tracking_sheet.sheet.arr2d, [[]], "no tracking sheet side-effect");
     t.deepEqual(
       cmd.log_sheet.sheet.arr2d[0].slice(1),
-      [1000, "test_userid", "command", "statusManualEdit", "new_status_val"],
+      ["1000", "test_userid", "command", "statusManualEdit", "new_status_val"],
       "logs new status"
     );
   })
   
   test("postRequest command success", function(t) {
-    var cmd = new PostRequestCommand({
-      uniqueid: 1000
-    });
+    var cmd = new PostRequestCommand({uniqueid: "1000"});
     cmd.execute(new TrackingSheetWrapper(new MockSheet(mock_tracking_array())),
                 new LogSheetWrapper(new MockSheet()),
                 new MockSuccessMessenger());
-    t.equal(cmd.row.uniqueid, 1000, "correct uniqueid");
+    t.equal(cmd.row.uniqueid, "1000", "correct uniqueid");
     t.equal(cmd.row.requestStatus, "Sent", "status is Sent");
     t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1000, "logs uniqueid");
   })
   
   test("postRequest command failure", function(t) {
-    var cmd = new PostRequestCommand({
-      uniqueid: 1000
-    });
+    var cmd = new PostRequestCommand({uniqueid: "1000"});
     cmd.execute(new TrackingSheetWrapper(new MockSheet(mock_tracking_array())),
                 new LogSheetWrapper(new MockSheet()),
                 new MockFailMessenger());
-    t.equal(cmd.row.uniqueid, 1000, "correct uniqueid");
+    t.equal(cmd.row.uniqueid, "1000", "correct uniqueid");
     t.equal(cmd.row.requestStatus, "FailSend", "status is FailSend");
     t.deepEqual(cmd.log_sheet.sheet.arr2d, [[]], "no log");
   })
+  
+  test("volunteer command failure", function(t) {
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockSuccessMessenger();
+    
+    var cmd = new VolunteerCommand({uniqueid: "9999"});
+    t.equal(
+      try_method_return(cmd, "execute", tracking_sheet, log_sheet, messenger),
+      uniqueIDdoesNotExistMessage({uniqueid: "9999"}),
+      "uniqueid not found"
+    );
+    
+    var cmd = new VolunteerCommand({uniqueid: "1000", channelid: "wrong_channel"});
+    t.equal(
+      try_method_return(cmd, "execute", tracking_sheet, log_sheet, messenger),
+      wrongChannelMessage({uniqueid: "1000"}),
+      "wrong channel"
+    );    
+  })
+  
+  test("volunteer command success", function(t) {
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockSuccessMessenger();
+        
+    var cmd = new VolunteerCommand({uniqueid: "1000", channelid: "C012HGQEJMB"});
+    t.equal(
+      cmd.execute(tracking_sheet, log_sheet, messenger),
+      volunteerSuccessMessage(cmd.row),
+      "returns success message"
+    );
+    t.equal(cmd.row.uniqueid, "1000", "correct uniqueid");
+    t.equal(cmd.row.requestStatus, "Assigned", "status is Assigned");
+    t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1000, "logs uniqueid");
+  })
+  
+  test("cancel command success", function(t) {
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockSuccessMessenger();   
+    
+    var cmd = new CancelCommand(
+      {uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6"});
+    t.equal(
+      cmd.execute(tracking_sheet, log_sheet, messenger),
+      cancelSuccessMessage(cmd.row, true),
+      "returns success message"
+    );
+    t.equal(cmd.row.uniqueid, "1001", "correct uniqueid");
+    t.equal(cmd.row.requestStatus, "Sent", "status is Sent");
+    t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1001, "logs uniqueid");
+  })
+  
+  test("done modal command success", function(t) {
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockSuccessMessenger();   
+    
+    var cmd = new DoneSendModalCommand(
+      {uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6"});
+    t.equal(
+      cmd.execute(tracking_sheet, log_sheet, messenger),
+      doneSendModalSuccessMessage({uniqueid: "1001"}),
+      "returns success message"
+    );
+  })
+  
+  
     
     
 }
