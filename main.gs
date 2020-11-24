@@ -14,8 +14,7 @@
  */
 function doPost(e) {
   try{
-    var slackEvent = createSlackEventClassInstance(e);
-    slackEvent.parse();
+    var slackEvent = createSlackEvent(e);
     var messageToUser = slackEvent.handle();
     return contentServerJsonReply(messageToUser);
   }
@@ -33,8 +32,8 @@ function doPost(e) {
  * see https://developers.google.com/apps-script/guides/triggers/installable
  * @param {*} e The event object.
  */
-function doTriggered(e){
-  var sheetEvent = createSheetEventClassInstance(e);
+function doTriggered(e) {
+  var sheetEvent = createSheetEvent(e);
   try{
     var message = sheetEvent.handle();
     sheetEvent.notify(message);

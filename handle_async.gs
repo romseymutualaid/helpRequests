@@ -2,30 +2,28 @@
 
 /**
  * Async run functionName
- * @param {*} functionName
  * @param {*} args
  */
-function processFunctionAsync(cmdName, args){
+function processFunctionAsync(args){
   // Queue an async reply with the asyncMethod defined in globalVariables 
   // (i.e. either a time-based or form-based trigger)
   var asyncMethod = globalVariables().ASYNC_METHOD;
-  GlobalFuncHandle[asyncMethod](cmdName, args);
+  GlobalFuncHandle[asyncMethod](args);
 }
 
 /**
  * Submit request to event form, to allow a delayed response
- * @param {*} cmdName
  * @param {*} args
  */
-function processAsyncWithFormTrigger(cmdName, args) {
+function processAsyncWithFormTrigger(args) {
   // construct post request
   var eventForm = JSON.parse(
     PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
   var options = {
     method:'post',
     payload:{
-      [eventForm.entry_id.fctName]:cmdName,
-      [eventForm.entry_id.args]:JSON.stringify(args)
+      [eventForm.entry_id.fctName]: args.cmd_name,
+      [eventForm.entry_id.args]: JSON.stringify(args)
     }
   };
   
@@ -39,13 +37,13 @@ function processAsyncWithFormTrigger(cmdName, args) {
  * @param {*} functionName
  * @param {*} args
  */
-function processAsyncWithTimeTrigger(cmdName, args) {
+function processAsyncWithTimeTrigger(args) {
   var trigger = ScriptApp.newTrigger("doTriggered")
     .timeBased()
     .after(100)
     .create();
 
-  setupTriggerArguments(trigger, [cmdName, args], false);
+  setupTriggerArguments(trigger, [args.cmd_name, args], false);
 }
 
 

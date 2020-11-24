@@ -1,10 +1,12 @@
 class TrackingSheetWrapper {
   // Wrapper around the tracking sheet.
 
-  constructor(){
+  constructor(sheet){
     var globvar = globalVariables();
-    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    this.sheet = spreadsheet.getSheetByName(globvar['TRACKING_SHEETNAME']);
+    this.sheet = (
+      sheet !== undefined ? sheet : 
+      SpreadsheetApp.getActiveSpreadsheet().getSheetByName(globvar['TRACKING_SHEETNAME'])
+    );
     this.columns = globvar["SHEET_COL_ORDER"];
     this.machine_writable_columns = globvar["MACHINE_WRITABLE_COLS"];
     this.numColumns = this.columns.length;
@@ -75,16 +77,12 @@ class TrackingSheetWrapper {
 class LogSheetWrapper {
   // Wrapper around the logging sheet.
 
-  constructor(){
+  constructor(sheet){
     var globvar = globalVariables();
-    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    this.sheet = spreadsheet.getSheetByName(globvar['LOG_SHEETNAME']);  
-  }
-  
-  appendRow(row){
-    // Append array row to the end of the sheet.
-    var row_log = this.sheet.getLastRow();
-    this.sheet.getRange(row_log+1,1,1, row.length).setValues([row]);
+    this.sheet = (
+      sheet !== undefined ? sheet : 
+      SpreadsheetApp.getActiveSpreadsheet().getSheetByName(globvar['LOG_SHEETNAME'])
+    );
   }
   
   appendFormattedRow(msg){
