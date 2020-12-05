@@ -2,32 +2,33 @@
 
 /**
  * Async run functionName
- * @param {*} functionName
  * @param {*} args
  */
-function processFunctionAsync(cmdName, args){
-  // Queue an async reply with the asyncMethod defined in globalVariables (i.e. either a time-based or form-based trigger)
+function processFunctionAsync(args){
+  // Queue an async reply with the asyncMethod defined in globalVariables 
+  // (i.e. either a time-based or form-based trigger)
   var asyncMethod = globalVariables().ASYNC_METHOD;
-  GlobalFuncHandle[asyncMethod](cmdName, args);
+  GlobalFuncHandle[asyncMethod](args);
 }
 
 /**
  * Submit request to event form, to allow a delayed response
- * @param {*} cmdName
  * @param {*} args
  */
-function processAsyncWithFormTrigger(cmdName, args) {
+function processAsyncWithFormTrigger(args) {
   // construct post request
-  var eventForm = JSON.parse(PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
+  var eventForm = JSON.parse(
+    PropertiesService.getScriptProperties().getProperty('EVENT_FORM'));
   var options = {
     method:'post',
     payload:{
-      [eventForm.entry_id.fctName]:cmdName,
-      [eventForm.entry_id.args]:JSON.stringify(args)
+      [eventForm.entry_id.fctName]: args.cmd_name,
+      [eventForm.entry_id.args]: JSON.stringify(args)
     }
   };
   
-  // Post request submission to form. The return value of .getContextText() does not appear to be informative of success of submission.
+  // Post request submission to form. The return value of .getContextText() 
+  // does not appear to be informative of success of submission.
   UrlFetchApp.fetch(eventForm.url, options).getContentText(); 
 }
 
@@ -36,13 +37,13 @@ function processAsyncWithFormTrigger(cmdName, args) {
  * @param {*} functionName
  * @param {*} args
  */
-function processAsyncWithTimeTrigger(cmdName, args) {
+function processAsyncWithTimeTrigger(args) {
   var trigger = ScriptApp.newTrigger("doTriggered")
     .timeBased()
     .after(100)
     .create();
 
-  setupTriggerArguments(trigger, [cmdName, args], false);
+  setupTriggerArguments(trigger, [args.cmd_name, args], false);
 }
 
 
@@ -56,7 +57,8 @@ var ARGUMENTS_KEY = "arguments";
  * Sets up the arguments for the given trigger.
  *
  * @param {Trigger} trigger - The trigger for which the arguments are set up
- * @param {*} functionArguments - The arguments which should be stored for the function call
+ * @param {*} functionArguments - The arguments which should be stored for the 
+ *   function call
  * @param {boolean} recurring - Whether the trigger is recurring; if not the
  *   arguments and the trigger are removed once it called the function
  */
@@ -66,12 +68,14 @@ function setupTriggerArguments(trigger, functionArguments, recurring) {
   triggerData[RECURRING_KEY] = recurring;
   triggerData[ARGUMENTS_KEY] = functionArguments;
 
-  PropertiesService.getScriptProperties().setProperty(triggerUid, JSON.stringify(triggerData));
+  PropertiesService.getScriptProperties().setProperty(
+    triggerUid, JSON.stringify(triggerData));
 }
 
 /**
- * Function which should be called when a trigger runs a function. Returns the stored arguments
- * and deletes the properties entry and trigger if it is not recurring.
+ * Function which should be called when a trigger runs a function. 
+ * Returns the stored arguments and deletes the properties entry and trigger 
+ * if it is not recurring.
  *
  * @param {string} triggerUid - The trigger id
  * @return {*} - The arguments stored for this trigger

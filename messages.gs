@@ -13,7 +13,6 @@ var requestFormatted = function(row){
 }
 
 var requestPrivateDetailsFormatted = function(row){
-  
   var householdMessage = "";
   if (row.householdSit != ""){
     householdMessage = "\nTheir household situation is: " + row.householdSit + ".\n"

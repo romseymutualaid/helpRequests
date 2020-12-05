@@ -1,49 +1,51 @@
-// A set of command models are defined here (Command subclasses).
-//
-// All models interface with the database (google sheets) and the view (slack API).
-// Models have a common Command.execute() method which:
-// - gets relevant data from the database
-// - validates command according to database state (throws error if command is not allowed)
-// - updates view and database as required
-//
-// See database functions in sheet_wrapper.gs.
-// See command validity functions in rowChecks.gs.
-// See view functions in slack_messaging.gs.
-
+/**
+ * @fileoverview A set of command models are defined here (Command subclasses).
+ *
+ * All models interface with the database (google sheets) and the view (slack API).
+ * Models have a common Command.execute() method which:
+ * - gets relevant data from the database
+ * - validates command according to database state (throws error if command is 
+ * not allowed)
+ * - updates view and database as required
+ *
+ * See database functions in sheet_wrapper.gs.
+ * See command validity functions in rowChecks.gs.
+ * See view functions in slack_messaging.gs.
+ */
 
 /*** CONSTRUCTORS ***/
 
 /**
- *  Return the appropriate Command subclass instance based on the specified slackCmdString and args parameters.
- * @param {*} slackCmdString
- * @param {*} args
+ * Return the appropriate Command subclass instance.
+ * @param {object} args
  */
-var createCommandClassInstance = function(slackCmdString, args){
-  
+var createCommandClassInstance = function(args){
+  var type = args.cmd_name;
   var SUBCLASS_FROM_SLACKCMD = globalVariables().SUBCLASS_FROM_SLACKCMD;
   
-  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(slackCmdString)){ // if no key is found for slackCmdString, return error
-    throw new Error(commandNotSupportedMessage(slackCmdString));
+  if (!SUBCLASS_FROM_SLACKCMD.hasOwnProperty(type)){
+    // if no key is found for type, return error
+    throw new Error(commandNotSupportedMessage(type));
   }
-  if (typeof SUBCLASS_FROM_SLACKCMD[slackCmdString] !== 'function'){
-    throw new Error(commandNotConnectedMessage(slackCmdString));
+  if (typeof SUBCLASS_FROM_SLACKCMD[type] !== 'function'){
+    throw new Error(commandNotConnectedMessage(type));
   }
   if (typeof args !== 'object' || args === null){
     throw new Error(commandArgumentsAreCorruptedMessage());
   }
   
-  return new SUBCLASS_FROM_SLACKCMD[slackCmdString](args);
+  return new SUBCLASS_FROM_SLACKCMD[type](args);
 }
 
 
 /*** LOGIC ***/
 
 /**
- *  The CommandArgs class encapsulates and formats the arguments passed to a ConcreteCommand,
- *  as well as methods to manipulate those args (parsing, etc.).
+ *  Argument object passed to a ConcreteCommand,
  */
 class CommandArgs {
   constructor(args){
+    this.cmd_name = args.cmd_name;
     this.uniqueid = args.uniqueid;
     this.channelid = args.channelid;
     this.userid = args.userid;
@@ -62,14 +64,16 @@ class CommandArgs {
     var regexpToMatch = "^[0-9]{4}$";
     var msg_empty_str = uniqueIDnotProvidedMessage();
     var msg_nomatch_str = uniqueIDsyntaxIsIncorrectMessage(this);
-    extractMatchOrThrowError(this.uniqueid, regexpToMatch, msg_empty_str, msg_nomatch_str);
+    extractMatchOrThrowError(this.uniqueid, regexpToMatch, 
+                             msg_empty_str, msg_nomatch_str);
   }
   
   parseMentionString(){
     var regexpToMatch = "<@(U[A-Z0-9]+)\\|?(.*)>";
     var msg_empty_str = userMentionNotProvidedMessage();
     var msg_nomatch_str = userMentionSyntaxIsIncorrectMessage(this);
-    var re_match = extractMatchOrThrowError(this.mention.str, regexpToMatch, msg_empty_str, msg_nomatch_str);
+    var re_match = extractMatchOrThrowError(this.mention.str, regexpToMatch,
+                                            msg_empty_str, msg_nomatch_str);
     this.mention.userid = re_match[1];
     this.mention.username = re_match[2];
   }
@@ -81,7 +85,7 @@ class CommandArgs {
 
 
 /**
- *  The Command class is an abstract class inherited by all the ConcreteCommand subclasses
+ *  Abstract class for app commands.
  */
 class Command {
   constructor(args){
@@ -101,20 +105,44 @@ class Command {
   getSheetData(){}
   checkCommandValidity(){}
   updateState(){}
-  notify(){}
+  notify(messenger){}
   nextCommand(){
     // Default behaviour is that no further command is executed. 
     // However, some {command,arg} combinations lead to chained commands 
-    // example: {DoneCommand,this.requestNextStatus='keepOpenNew'}' triggers CancelCommand.
+    // example: {DoneCommand, this.requestNextStatus='keepOpenNew'}' triggers 
+    // CancelCommand.
   }
   
-  execute(){
-    this.tracking_sheet = new TrackingSheetWrapper();
-    this.log_sheet = new LogSheetWrapper(); //do not instantiate these in constructor because they take ~300ms and would compromise immediate response
+  /**
+   * Run Command sync or async.
+   * @param {bool, optional} async If true, run async. If false, run sync.
+   *   default: True if this.args.cmd_name is not in globalVariables()["SYNC_COMMANDS"].
+   */
+  run(async) {
+    if (async === undefined) {
+      async = !isVarInArray(this.args.cmd_name, globalVariables()["SYNC_COMMANDS"]);
+    }
+    if (async) {
+      var immediateReturnMessage = this.immediateReturnMessage;
+      processFunctionAsync(this.args);
+    } else {
+      var immediateReturnMessage = this.execute();
+    }
+    return immediateReturnMessage;
+  }
+  
+  execute(trackingSheet, logSheet, messenger){
+    // Do not instantiate sheets in constructor
+    // because they take ~300ms and compromise immediate response.
+    this.tracking_sheet = (
+      trackingSheet !== undefined ? trackingSheet : new TrackingSheetWrapper());
+    this.log_sheet = (
+      logSheet !== undefined ? logSheet : new LogSheetWrapper());
+
     this.getSheetData();
     this.checkCommandValidity();
     this.updateState();
-    var returnMessage = this.notify();
+    var returnMessage = this.notify(messenger);
     this.nextCommand();
     return returnMessage;
   }
@@ -125,6 +153,8 @@ class Command {
  *  Handler for a "do nothing" command
  */
 class VoidCommand extends Command {
+  run(async) {}
+  execute() {}
 }
 
 class HomeShortcutCommand extends Command {
@@ -183,7 +213,7 @@ class StatusLogCommand extends Command {
     this.loggerMessage.additionalInfo=this.args.more.requestStatusValue;
   }
   
-  notify(){
+  notify(messenger){
     this.log_sheet.appendFormattedRow(this.loggerMessage);
   }
 }
@@ -202,12 +232,12 @@ class PostRequestCommand extends Command {
     this.row = this.tracking_sheet.getRowByUniqueID(this.args.uniqueid);
   }
   
-  notify(){
+  notify(messenger){
     
     // slack channel messenger
+    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
     var payload = postRequestMessage(this.row);
-    var channelMessenger = new SlackChannelMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    var return_message = messenger.send(payload);
   
     // tracking sheet writer
     var return_params = JSON.parse(return_message);
@@ -257,8 +287,9 @@ class AssignCommand extends Command {
     return assignPendingMessage();
   }
   
-  nextCommand(){  
-    processFunctionAsync('/volunteer', this.args); // todo: clean up string call
+  nextCommand(){
+    this.args.cmd_name = "/volunteer";
+    processFunctionAsync(this.args); // todo: clean up string call
   }
 }
 
@@ -293,7 +324,7 @@ class VolunteerCommand extends Command {
     this.row.requestStatus = "Assigned";
   }
   
-  notify(){
+  notify(messenger){
     
     // slack channel chat.update messenger
     // updates postRequest message to no longer have the "volunteer" button
@@ -308,8 +339,8 @@ class VolunteerCommand extends Command {
     
     // slack channel messenger
     var payload = volunteerChannelMessage(this.row);
-    var channelMessenger = new SlackChannelMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
+    var return_message = messenger.send(payload);
     
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
@@ -350,13 +381,14 @@ class CancelCommand extends Command {
   }
   
   updateState(){
-    this.slackVolunteerID_old = this.row.slackVolunteerID; // store this for channel messenger in notify()
+    // store volunteerID_old for channel messenger in notify()
+    this.slackVolunteerID_old = this.row.slackVolunteerID;
     this.row.slackVolunteerID = '';
     this.row.slackVolunteerName = '';
     this.row.requestStatus = 'Sent';
   }
   
-  notify(){
+  notify(messenger){
     
     // slack channel chat.update messenger
     // updates postRequest message to regain the "volunteer" button
@@ -371,8 +403,8 @@ class CancelCommand extends Command {
     
     // slack channel messenger
     var payload = cancelChannelMessage(this.row,this.slackVolunteerID_old);                                                                                                           
-    var channelMessenger = new SlackChannelMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
+    var return_message = messenger.send(payload);
     
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
@@ -397,12 +429,12 @@ class DoneSendModalCommand extends Command {
     this.args.parseUniqueID();
   }
   
-  notify(){
+  notify(messenger){
     
     // Send post request to Slack views.open API to open a modal for user
     var payload = doneModalMessage(this.args);
-    var modalMessenger = new SlackModalMessenger(this);
-    var return_message = modalMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackModalMessenger(this);
+    var return_message = messenger.send(payload);
   
     // halt if message was not successfully sent
     if (JSON.parse(return_message).ok !== true){
@@ -422,13 +454,13 @@ class DoneCommand extends Command {
   constructor(args){
     super(args);
     
-    this.immediateReturnMessage = null; // modal requires a blank HTTP 200 OK immediate response to close
+    // modal requires a blank HTTP 200 OK immediate response (null) to close
+    this.immediateReturnMessage = null;
     this.loggerMessage.subtype='done';
 
     // done modal responses
     var modalResponseVals = args.more.modalResponseValues;
     this.requestNextStatus = modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value;
-    // check optional argument isn't empty or undefined
     if (
       modalResponseVals.completionLastDetails && 
       modalResponseVals.completionLastDetails.completionLastDetailsVal &&
@@ -450,7 +482,8 @@ class DoneCommand extends Command {
   }
   
   updateState(){
-    if ((this.requestNextStatus === '') || (this.requestNextStatus === 'unsure') || (this.requestNextStatus === 'toClose')){
+    if ((this.requestNextStatus === '') || (this.requestNextStatus === 'unsure')
+      || (this.requestNextStatus === 'toClose')){
       this.row.requestStatus = 'ToClose?';
     } else if (this.requestNextStatus === 'keepOpenAssigned'){
       this.row.requestStatus = "Assigned";
@@ -466,15 +499,15 @@ class DoneCommand extends Command {
     checkRowAcceptsDone(this.row, this.args);
   }
   
-  notify(){
+  notify(messenger){
     
     // slack channel messenger
     var payload = doneChannelMessage(this.row);
-    var channelMessenger = new SlackChannelMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
+    var return_message = messenger.send(payload);
     
     // halt if message was not successfully sent
-    if (JSON.parse(return_message).ok !== true){ // message was not successfully sent
+    if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
     
@@ -484,12 +517,13 @@ class DoneCommand extends Command {
     this.log_sheet.appendFormattedRow(this.loggerMessage);
     
     // user return message printer
-    return doneSuccessMessage(this.row,true);
+    return doneSuccessMessage(this.row, true);
   }
   
   nextCommand(){
     if (this.requestNextStatus === 'keepOpenNew'){
-      processFunctionAsync('/cancel', this.args); //todo:clean up string call
+      this.args.cmd_name = "/cancel" //todo:clean up string call
+      processFunctionAsync(this.args);
     }
   }
 }
