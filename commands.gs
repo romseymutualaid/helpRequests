@@ -158,10 +158,10 @@ class VoidCommand extends Command {
 }
 
 class HomeShortcutCommand extends Command {
-  notify(){
+  notify(messenger){
     // Send post request to Slack views.open API to open a modal for user
+    messenger = messenger !== undefined ? messenger : new SlackModalMessenger(this);
     var payload = appHomeShortcutModalMessage(this.args);
-    var modalMessenger = new SlackModalMessenger(this);
     var return_message = modalMessenger.send(payload);
   
     // halt if message was not successfully sent
@@ -193,11 +193,10 @@ class HomeOpenedCommand extends Command {
       );
   }
   
-  notify(){
-    
+  notify(messenger){
     // slack app home messenger
+    messenger = messenger !== undefined ? messenger : new SlackAppHomeMessenger(this);
     var payload = appHomeMessage(this.args, this.rows);
-    var appHomeMessenger = new SlackAppHomeMessenger(this);
     var return_message = appHomeMessenger.send(payload);    
   }
 }
@@ -326,23 +325,20 @@ class VolunteerCommand extends Command {
   
   notify(messenger){
     
-    // slack channel chat.update messenger
-    // updates postRequest message to no longer have the "volunteer" button
-    var payload = postRequestMessage(this.row,false);
-    var channelMessenger = new SlackChannelUpdateMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackMessenger(this);
     
-    // halt if message was not successfully sent
+    var return_message = sendSlackChannelUpdate(
+      messenger,
+      postRequestMessage(this.row, false)
+    );
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
     
-    // slack channel messenger
-    var payload = volunteerChannelMessage(this.row);
-    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
-    var return_message = messenger.send(payload);
-    
-    // halt if message was not successfully sent
+    var return_message = sendSlackChannel(
+      messenger,
+      volunteerChannelMessage(this.row)
+    );
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
@@ -390,23 +386,20 @@ class CancelCommand extends Command {
   
   notify(messenger){
     
-    // slack channel chat.update messenger
-    // updates postRequest message to regain the "volunteer" button
-    var payload = postRequestMessage(this.row,true);
-    var channelMessenger = new SlackChannelUpdateMessenger(this);
-    var return_message = channelMessenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackMessenger(this);
     
-    // halt if message was not successfully sent
+    var return_message = sendSlackChannelUpdate(
+      messenger,
+      postRequestMessage(this.row, true)
+    );
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
     
-    // slack channel messenger
-    var payload = cancelChannelMessage(this.row,this.slackVolunteerID_old);                                                                                                           
-    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
-    var return_message = messenger.send(payload);
-    
-    // halt if message was not successfully sent
+    var return_message = sendSlackChannel(
+      messenger,
+      cancelChannelMessage(this.row,this.slackVolunteerID_old)
+    );
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
@@ -430,18 +423,11 @@ class DoneSendModalCommand extends Command {
   }
   
   notify(messenger){
-    
-    // Send post request to Slack views.open API to open a modal for user
-    var payload = doneModalMessage(this.args);
     messenger = messenger !== undefined ? messenger : new SlackModalMessenger(this);
-    var return_message = messenger.send(payload);
-  
-    // halt if message was not successfully sent
+    var return_message = messenger.send(doneModalMessage(this.args));
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackDoneModalErrorMessage(return_message));
     }
-    
-    // user return message printer
     return doneSendModalSuccessMessage(this.args);
   }
 }
@@ -466,7 +452,7 @@ class DoneCommand extends Command {
       modalResponseVals.completionLastDetails.completionLastDetailsVal &&
       modalResponseVals.completionLastDetails.completionLastDetailsVal.selected_option &&
       modalResponseVals.completionLastDetails.completionLastDetailsVal.selected_option.value
-    ){
+    ) {
       this.completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
     } else{
       this.completionLastDetails = ''; // replace null/undefined with ''
@@ -483,9 +469,9 @@ class DoneCommand extends Command {
   
   updateState(){
     if ((this.requestNextStatus === '') || (this.requestNextStatus === 'unsure')
-      || (this.requestNextStatus === 'toClose')){
+      || (this.requestNextStatus === 'toClose')) {
       this.row.requestStatus = 'ToClose?';
-    } else if (this.requestNextStatus === 'keepOpenAssigned'){
+    } else if (this.requestNextStatus === 'keepOpenAssigned') {
       this.row.requestStatus = "Assigned";
     }
     this.row.completionCount = +this.row.completionCount +1;
@@ -500,23 +486,16 @@ class DoneCommand extends Command {
   }
   
   notify(messenger){
-    
-    // slack channel messenger
-    var payload = doneChannelMessage(this.row);
     messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
-    var return_message = messenger.send(payload);
-    
-    // halt if message was not successfully sent
+    var return_message = messenger.send(doneChannelMessage(this.row));
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
     
-    // tracking sheet writer
     this.loggerMessage.additionalInfo = this.row.completionLastDetails;
     this.tracking_sheet.writeRow(this.row);
     this.log_sheet.appendFormattedRow(this.loggerMessage);
     
-    // user return message printer
     return doneSuccessMessage(this.row, true);
   }
   

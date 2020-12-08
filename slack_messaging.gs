@@ -16,9 +16,9 @@ function contentServerJsonReply(message) {
  * @param {string} payload
  * @param {string} url
  */
-var postToSlack = function(payload, url){
+var postToSlack = function(payload, url) {
     
-  if (JSON.parse(payload).as_user === true){
+  if (JSON.parse(payload).as_user === true) {
     var access_token = PropertiesService
                       .getScriptProperties()
                       .getProperty('ACCESS_TOKEN_USER');
@@ -28,16 +28,55 @@ var postToSlack = function(payload, url){
                       .getProperty('ACCESS_TOKEN');
   }
 
-  var options = {
+  var params = {
     method: "post",
     contentType: 'application/json; charset=utf-8',
     headers: {Authorization: 'Bearer ' + access_token},
     payload: payload
   };
 
-  return UrlFetchApp
-        .fetch(url, options)
-        .getContentText();
+  return UrlFetchApp.fetch(url, params).getContentText();  
+}
+
+var sendSlackUserAsync = function(messenger, payload) {
+  return messenger.send(
+    payload,
+    messenger.cmd.args.response_url,
+    "userAsync",
+    send
+  );
+}
+
+var sendSlackChannel = function(messenger, payload) {
+  return messenger.send(
+    payload,
+    globalVariables()['WEBHOOK_CHATPOSTMESSAGE'],
+    "channel"
+  );
+}
+
+var sendSlackChannelUpdate = function(messenger, payload) {
+  return messenger.send(
+    payload,
+    globalVariables()['WEBHOOK_CHATUPDATE'],
+    "channelUpdate"
+  );
+}
+
+var sendSlackModal = function(messenger, payload) {
+  return messenger.send(
+    payload,
+    globalVariables()['WEBHOOK_CHATPOSTMODAL'],
+    "userModal"
+  );
+}
+
+var sendSlackAppHome = function(messenger, payload) {
+  return messenger.send(
+    payload,
+    globalVariables()['WEBHOOK_VIEWPUBLISH'],
+    "appHome"
+  );
 }
 
 /**
@@ -49,17 +88,19 @@ class SlackMessenger {
   constructor(cmd){
     this.cmd = cmd;
     this.url = null;
-    this.loggerMessage={
-      uniqueid:this.cmd.args.uniqueid,
-      userid:'admin',
-      type:'slackResponse',
-      subtype:'',
-      additionalInfo:''
+    this.loggerMessage = {
+      uniqueid: this.cmd.args.uniqueid,
+      userid: 'admin',
+      type: 'slackResponse',
+      subtype: '',
+      additionalInfo: ''
     };
   }
   
-  send(msg){
-    var return_message = postToSlack(msg, this.url);
+  send(msg, url, subtype){
+    url = url !== undefined ? url : this.url;
+    this.loggerMessage.subtype = subtype !== undefined ? subtype : this.loggerMessage.subtype;
+    var return_message = postToSlack(msg, url);
     this.loggerMessage.additionalInfo = return_message;
     this.cmd.log_sheet.appendFormattedRow(this.loggerMessage);
     return return_message;

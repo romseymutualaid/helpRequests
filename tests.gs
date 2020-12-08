@@ -18,7 +18,7 @@ function gast() {
   test.finish()
 }
 
-var try_return = function(func, ...args){
+var try_return = function(func, ...args) {
   try {
     return func(...args);
   }
@@ -27,7 +27,7 @@ var try_return = function(func, ...args){
   }
 }
 
-var try_constructor_return = function(className, ...args){
+var try_constructor_return = function(className, ...args) {
   try {
     return new className(...args);
   }
@@ -36,7 +36,7 @@ var try_constructor_return = function(className, ...args){
   }
 }
 
-var try_method_return = function(className, methodName, ...args){
+var try_method_return = function(className, methodName, ...args) {
   try {
     return className[methodName](...args);
   }
@@ -272,14 +272,15 @@ function gast_test_commands(test) {
     }
   }
   
-  class MockSuccessMessenger {
-    send() {
-      return JSON.stringify({ok: true});
+  class MockMessenger {
+    constructor(return_par) {
+      this.sent = [];
+      this.returned = return_par !== undefined ? return_par : {ok: true}
     }
-  }
-  class MockFailMessenger {
-    send() {
-      return JSON.stringify({ok: false});
+    
+    send(msg, url, subtype) {
+      this.sent.push({msg: msg, url: url, subtype: subtype});
+      return JSON.stringify(this.returned);
     }
   }
   
@@ -316,7 +317,7 @@ function gast_test_commands(test) {
     var cmd = new StatusLogCommand({
       uniqueid: "1000",
       userid: "test_userid",
-      more: "new_status_val"
+      more: {requestStatusValue: "new_status_val"}
     });
     var msg = cmd.execute(
       new TrackingSheetWrapper(new MockSheet()),
@@ -332,30 +333,37 @@ function gast_test_commands(test) {
   
   test("postRequest command success", function(t) {
     var cmd = new PostRequestCommand({uniqueid: "1000"});
-    cmd.execute(new TrackingSheetWrapper(new MockSheet(mock_tracking_array())),
-                new LogSheetWrapper(new MockSheet()),
-                new MockSuccessMessenger());
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockMessenger({ok: true, ts: "new_ts"});
+    var message_expected = postRequestMessage(tracking_sheet.getRowByUniqueID(1000));
+    cmd.execute(tracking_sheet, log_sheet, messenger);
     t.equal(cmd.row.uniqueid, "1000", "correct uniqueid");
     t.equal(cmd.row.requestStatus, "Sent", "status is Sent");
+    t.equal(cmd.row.slackTS, "new_ts", "ts is updated");
     t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1000, "logs uniqueid");
+    t.equal(messenger.sent[0].msg, message_expected, "correct slack message");
   })
   
   test("postRequest command failure", function(t) {
     var cmd = new PostRequestCommand({uniqueid: "1000"});
-    cmd.execute(new TrackingSheetWrapper(new MockSheet(mock_tracking_array())),
-                new LogSheetWrapper(new MockSheet()),
-                new MockFailMessenger());
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockMessenger({ok: false});
+    var message_expected = postRequestMessage(tracking_sheet.getRowByUniqueID(1000));
+    cmd.execute(tracking_sheet, log_sheet, messenger);
     t.equal(cmd.row.uniqueid, "1000", "correct uniqueid");
     t.equal(cmd.row.requestStatus, "FailSend", "status is FailSend");
+    t.equal(cmd.row.slackTS, "", "ts is blank");
     t.deepEqual(cmd.log_sheet.sheet.arr2d, [[]], "no log");
+    t.equal(messenger.sent[0].msg, message_expected, "correct slack payload");
   })
   
   test("volunteer command failure", function(t) {
+    var cmd = new VolunteerCommand({uniqueid: "9999"});
     var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
     var log_sheet = new LogSheetWrapper(new MockSheet());
-    var messenger = new MockSuccessMessenger();
-    
-    var cmd = new VolunteerCommand({uniqueid: "9999"});
+    var messenger = new MockMessenger();
     t.equal(
       try_method_return(cmd, "execute", tracking_sheet, log_sheet, messenger),
       uniqueIDdoesNotExistMessage({uniqueid: "9999"}),
@@ -371,67 +379,87 @@ function gast_test_commands(test) {
   })
   
   test("volunteer command success", function(t) {
+    var cmd = new VolunteerCommand({uniqueid: "1000", channelid: "C012HGQEJMB",
+                                    userid: "USERID", username: "USERNAME"});
     var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
     var log_sheet = new LogSheetWrapper(new MockSheet());
-    var messenger = new MockSuccessMessenger();
-        
-    var cmd = new VolunteerCommand({uniqueid: "1000", channelid: "C012HGQEJMB"});
+    var messenger = new MockMessenger();
     t.equal(
       cmd.execute(tracking_sheet, log_sheet, messenger),
       volunteerSuccessMessage(cmd.row),
       "returns success message"
     );
+    var messages_expected = [
+      postRequestMessage(tracking_sheet.getRowByUniqueID(1000), false),
+      volunteerChannelMessage(tracking_sheet.getRowByUniqueID(1000))
+    ];
     t.equal(cmd.row.uniqueid, "1000", "correct uniqueid");
     t.equal(cmd.row.requestStatus, "Assigned", "status is Assigned");
+    t.equal(cmd.row.slackVolunteerID, "USERID", "updates userid");
+    t.equal(cmd.row.slackVolunteerName, "USERNAME", "updates username");
     t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1000, "logs uniqueid");
+    t.equal(messenger.sent[0].msg, messages_expected[0], "correct slack channel payload");
+    t.equal(messenger.sent[1].msg, messages_expected[1], "correct slack thread payload");
   })
   
   test("cancel command success", function(t) {
-    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
-    var log_sheet = new LogSheetWrapper(new MockSheet());
-    var messenger = new MockSuccessMessenger();   
-    
     var cmd = new CancelCommand(
       {uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6"});
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockMessenger();   
     t.equal(
       cmd.execute(tracking_sheet, log_sheet, messenger),
       cancelSuccessMessage(cmd.row, true),
       "returns success message"
     );
+    var messages_expected = [
+      postRequestMessage(tracking_sheet.getRowByUniqueID(1001), true),
+      cancelChannelMessage(tracking_sheet.getRowByUniqueID(1001), "UVCNQASN6")
+    ];
     t.equal(cmd.row.uniqueid, "1001", "correct uniqueid");
     t.equal(cmd.row.requestStatus, "Sent", "status is Sent");
+    t.equal(cmd.row.slackVolunteerID, "", "removed userid");
+    t.equal(cmd.row.slackVolunteerName, "", "removes username");
     t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1001, "logs uniqueid");
+    t.equal(messenger.sent[0].msg, messages_expected[0], "correct slack channel payload");
+    t.equal(messenger.sent[1].msg, messages_expected[1], "correct slack thread payload");
   })
   
   test("done modal command success", function(t) {
-    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
-    var log_sheet = new LogSheetWrapper(new MockSheet());
-    var messenger = new MockSuccessMessenger();   
-    
     var cmd = new DoneSendModalCommand(
       {uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6"});
-    t.equal(
-      cmd.execute(tracking_sheet, log_sheet, messenger),
-      doneSendModalSuccessMessage({uniqueid: "1001"}),
-      "returns success message"
-    );
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockMessenger();   
+    var message_expected = doneModalMessage(
+      {uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6"});
+    var return_val_expected = doneSendModalSuccessMessage({uniqueid: "1001"});
+    var return_val = cmd.execute(tracking_sheet, log_sheet, messenger);
+    t.equal(return_val, return_val_expected, "returns success message");
+    t.equal(messenger.sent[0].msg, message_expected, "correct slack modal payload");
   })
   
   test("done command success", function(t) {
+    var cmd = new DoneCommand({
+      uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6",
+      more: {
+        modalResponseValues: {
+          requestNextStatus: {requestNextStatusVal: {selected_option: {value: ""}}}
+        }
+      }
+    });
     var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
     var log_sheet = new LogSheetWrapper(new MockSheet());
-    var messenger = new MockSuccessMessenger();   
-    
-    var cmd = new DoneCommand(
-      {
-        uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6",
-        more: {requestNextStatus: {requestNextStatusVal: {selected_option: {value: ""}}}}
-      });
-    var msg = cmd.execute(tracking_sheet, log_sheet, messenger);
-    t.equal(msg, doneSuccessMessage(cmd.row, true), "returns success message");
+    var messenger = new MockMessenger();
+    var message_expected = doneChannelMessage(tracking_sheet.getRowByUniqueID(1001));
+    var return_val = cmd.execute(tracking_sheet, log_sheet, messenger);
+    t.equal(return_val, doneSuccessMessage(cmd.row, true), "returns success message");
     t.equal(cmd.row.uniqueid, "1001", "correct uniqueid");
     t.equal(cmd.row.requestStatus, "ToClose?", "status is ToClose?");
+    t.equal(cmd.row.completionCount, "2", "increments completion count");
     t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1001, "logs uniqueid");
+    t.equal(messenger.sent[0].msg, message_expected, "correct slack thread payload");
   })
   
   test("list command success", function(t) {
