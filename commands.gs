@@ -159,17 +159,13 @@ class VoidCommand extends Command {
 
 class HomeShortcutCommand extends Command {
   notify(messenger){
-    // Send post request to Slack views.open API to open a modal for user
     messenger = messenger !== undefined ? messenger : new SlackModalMessenger(this);
-    var payload = appHomeShortcutModalMessage(this.args);
-    var return_message = modalMessenger.send(payload);
-  
-    // halt if message was not successfully sent
+    
+    var return_message = messenger.send(appHomeShortcutModalMessage(this.args));
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackDefaultModalErrorMessage(return_message));
     }
     
-    // user return message printer
     return defaultSendModalSuccessMessage();
   }
 }
@@ -185,19 +181,18 @@ class HomeOpenedCommand extends Command {
   }
   
   getSheetData(){
-    this.rows = this.tracking_sheet.getAllRows()
-    .filter(
+    this.rows = this.tracking_sheet.getAllRows().filter(
       // non-closed status, belongs to user
-      row => isVarInArray(row.requestStatus,['Assigned','Ongoing']) &&
-      row.slackVolunteerID === this.args.userid
+        row => (
+          isVarInArray(row.requestStatus,['Assigned','Ongoing'])
+          && row.slackVolunteerID === this.args.userid
+      )
       );
   }
   
   notify(messenger){
-    // slack app home messenger
     messenger = messenger !== undefined ? messenger : new SlackAppHomeMessenger(this);
-    var payload = appHomeMessage(this.args, this.rows);
-    var return_message = appHomeMessenger.send(payload);    
+    var return_message = messenger.send(appHomeMessage(this.args, this.rows));    
   }
 }
 

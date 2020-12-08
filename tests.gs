@@ -310,9 +310,17 @@ function gast_test_commands(test) {
         "1591654103.007100", "", "judefbrady", "C012HGQEJMB", "UVCNQASN6", 1,
         "10/06/2020 13:57:22", "coffee required", ""
       ],
+      [
+        1002, "14/04/2020 01:40:22", "test case 12", "", "9A mill rd",
+        "", "delivery", "16/04/2020", "", "testsrequests-jb", "",
+        "jb", "", "Assigned",
+        "https://romseymutualaid.slack.com/archives/C012HGQEJMB/p1591654103007100",
+        "1591654103.007101", "", "judefbrady", "C012HGQEJMB", "UVCNQASN6", 9,
+        "", "", ""
+      ],
     ];
   }
- 
+
   test("statusLog command", function(t) {
     var cmd = new StatusLogCommand({
       uniqueid: "1000",
@@ -329,6 +337,29 @@ function gast_test_commands(test) {
       ["1000", "test_userid", "command", "statusManualEdit", "new_status_val"],
       "logs new status"
     );
+  })
+  
+  test("home shortcut command success", function(t) {
+    var cmd = new HomeShortcutCommand({trigger_id: "TRIGGER_ID"});
+    var messenger = new MockMessenger();   
+    var message_expected = appHomeShortcutModalMessage({trigger_id: "TRIGGER_ID"});
+    var return_val_expected = defaultSendModalSuccessMessage();
+    var return_val = cmd.execute(undefined, undefined, messenger);
+    t.equal(return_val, return_val_expected, "returns success message");
+    t.equal(messenger.sent[0].msg, message_expected, "correct slack modal payload");
+  })
+  
+  test("home opened command success", function(t) {
+    var cmd = new HomeOpenedCommand({userid: "UVCNQASN6", more: {tab: "home"}});
+    var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
+    var log_sheet = new LogSheetWrapper(new MockSheet());
+    var messenger = new MockMessenger();
+    var rows_expected = [
+      tracking_sheet.getRowByUniqueID(1001), tracking_sheet.getRowByUniqueID(1002)];
+    var message_expected = appHomeMessage({userid: "UVCNQASN6"}, rows_expected);
+    cmd.execute(tracking_sheet, log_sheet, messenger);
+    t.deepEqual(cmd.rows.map(x => x.uniqueid), ["1001", "1002"], "correct uniqueids");
+    t.equal(messenger.sent[0].msg, message_expected, "correct slack message");
   })
   
   test("postRequest command success", function(t) {
