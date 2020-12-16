@@ -9,7 +9,7 @@ function gast() {
   
   gast_test_positive_controls(test);
 //  gast_test_doPost(test);
-//  gast_test_slackEventAdapters(test);
+  gast_test_slackEventAdapters(test);
   gast_test_slackEvent(test);
 //  gast_test_sheetEventAdapters(test);
   gast_test_sheetEvent(test);
@@ -45,6 +45,46 @@ var try_method_return = function(className, methodName, ...args) {
   }
 }
 
+var mock_slack_slashCmd_event = function(cmd="/volunteer", txt="0000",
+                                         userid=globalVariables()["MOD_USERID"]) {
+  return {parameter: {
+    token: PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'),
+    api_app_id: "",
+    team_id: globalVariables()['TEAM_ID'],
+    team_domain: "",
+    channel_id: "",
+    channel_name: "",
+    user_id: userid,
+    user_name: "",
+    response_url: "",
+    trigger_id: "",
+    command: cmd,
+    text: txt
+  }};
+}
+
+var mock_slack_modalSubmit_event = function(id="modal_done") {
+  return {parameter: {
+    payload: JSON.stringify({
+      token: PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'),
+      team: {id: globalVariables()['TEAM_ID']},
+      user: {id: ""},
+      type: "view_submission",
+      view: {
+        callback_id: id,
+        private_metadata: JSON.stringify({
+          channelid: "", uniqueid: "0000", response_url: ""
+        }),
+        state: {
+          values: {
+            requestNextStatus: {requestNextStatusVal: {selected_option: {value: ""}}}
+          }
+        }
+      }
+    })
+  }};
+}
+
 function gast_test_positive_controls(test) {
   test('do calculation right', function (t) {
     var i = 3 + 4
@@ -65,17 +105,7 @@ function gast_test_doPost(test) {
   });
   
   test("returns ack if slash cmd", function(t) {
-    var e = {parameter: {
-      token: PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'),
-      team_id: globalVariables()['TEAM_ID'],
-      channel_id: "",
-      user_id: "",
-      user_name: "",
-      response_url: "",
-      trigger_id: "",
-      command: "/volunteer",
-      text: "0000"
-    }};
+    var e = mock_slack_slashCmd_event("/volunteer", "0000");
     t.equal(doPost(e).getContent(), commandPendingMessage(), "volunteer");
     
     e.parameter.command = "/cancel";
@@ -84,7 +114,7 @@ function gast_test_doPost(test) {
     e.parameter.command = "/done";
     slack_invalid_triggerid_msg = "{\"ok\":false,\"error\":\"invalid_arguments\",\"response_metadata\":{\"messages\":[\"[ERROR] invalid `trigger_id` [json-pointer:\\/trigger_id]\"]}}";
     t.equal(doPost(e).getContent(),
-            postToSlackModalErrorMessage(slack_invalid_triggerid_msg), "done");
+            postToSlackDoneModalErrorMessage(slack_invalid_triggerid_msg), "done");
     
     e.parameter.command = "/list";
     t.equal(doPost(e).getContent(), commandPendingMessage(), "list");
@@ -108,30 +138,62 @@ function gast_test_doPost(test) {
   });
   
   test("returns ack if interactive message", function(t){
-    var e = {parameter: {
-      payload: JSON.stringify({
-        token: PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'),
-        team: {id: globalVariables()['TEAM_ID']},
-        user: {id: ""},
-        type: "view_submission",
-        view: {
-          callback_id: "done_modal",
-          private_metadata: JSON.stringify({
-            channelid: "", uniqueid: "0000", response_url: ""
-          }),
-          state: {
-            values: {
-              requestNextStatus: {requestNextStatusVal: {selected_option: {value: ""}}}
-            }
-          }
-        }
-      })
-    }};
-    t.equal(doPost(e).getContent(), null, "done_modal");
+    var e = mock_slack_modalSubmit_event("modal_done");
+    t.equal(doPost(e).getContent(), null, "modal_done");
   });
 }
 
 function gast_test_slackEventAdapters(test) {
+  test("routes /assign slash cmd", function(t) {
+    var e = mock_slack_slashCmd_event("/assign", "0000 <@UTESTID>");
+    t.ok(createSlackEvent(e).cmd instanceof AssignCommand, "is AssignCommand");
+  });
+  
+  test("routes /volunteer slash cmd", function(t) {
+    var e = mock_slack_slashCmd_event("/volunteer", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof VolunteerCommand, "is VolunteerCommand");
+  });
+  
+  test("routes /cancel slash cmd", function(t) {
+    var e = mock_slack_slashCmd_event("/cancel", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof CancelCommand, "is CancelCommand");
+  });
+  
+  test("routes /done slash cmd", function(t) {
+    var e = mock_slack_slashCmd_event("/done", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof DoneSendModalCommand, "is DoneSendModalCommand");
+  });
+  
+  test("routes /list slash cmd", function(t) {
+    var e = mock_slack_slashCmd_event("/list", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof ListCommand, "is ListCommand");
+  });
+  
+  test("routes /listactive slash cmd", function(t) {
+    var e = mock_slack_slashCmd_event("/listactive", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof ListActiveCommand, "is ListActiveCommand");
+  });
+  
+  test("routes /listall slash cmd", function(t) {
+    var e = mock_slack_slashCmd_event("/listall", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof ListAllCommand, "is ListAllCommand");
+  });
+  
+  test("routes /listmine slash cmd", function(t) {
+    var e = mock_slack_slashCmd_event("/listmine", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof ListMineCommand, "is ListMineCommand");
+  });
+  
+  test("routes /listallmine slash cmd", function(t) {
+    var e = mock_slack_slashCmd_event("/listallmine", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof ListAllMineCommand, "is ListAllMineCommand");
+  });
+  
+  test("routes modal_done", function(t) {
+    var e = mock_slack_modalSubmit_event("modal_done");
+    t.ok(createSlackEvent(e).cmd instanceof DoneCommand, "is DoneCommand");
+  });
+  
 }
 
 function gast_test_slackEvent(test) {

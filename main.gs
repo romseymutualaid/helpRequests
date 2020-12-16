@@ -13,6 +13,9 @@
  * @param {*} e The event object.
  */
 function doPost(e) {
+//  Logger.log(e);
+//  Logger.log(e.postData.type);
+//  Logger.log(e.postData.contents);
   try{
     var slackEvent = createSlackEvent(e);
     var messageToUser = slackEvent.handle();

@@ -53,9 +53,9 @@ var slackInteractiveMessageAdapter = function(par) {
       trigger_id: null,
       uniqueid: metadata.uniqueid,
       mention: {str: null, userid: null, username: null},
-      more: payload.view.state.values
+      more: {modalResponseValues: payload.view.state.values}
     })
-  }
+  };
 }
 
 /**
