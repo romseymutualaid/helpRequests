@@ -99,6 +99,20 @@ var mock_slack_shortcut_event = function(id="shortcut_app_home") {
   }};
 }
 
+var mock_slack_urlVerification_event = function() {
+  // see https://api.slack.com/events/url_verification
+  return {
+    parameter: {},
+    postData: {
+      contents: JSON.stringify({
+        token: PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'),
+        type: "url_verification",
+        challenge: ""
+      })
+    }
+  };
+}
+
 var mock_slack_homeOpened_event = function() {
   // see https://api.slack.com/events/app_home_opened
   return mock_slack_api_event({
@@ -266,6 +280,11 @@ function gast_test_slackEventAdapters(test) {
     t.ok(createSlackEvent(e).cmd instanceof HomeShortcutCommand, "is HomeShortcutCommand");
   });
   
+  test("routes url_verification", function(t) {
+    var e = mock_slack_urlVerification_event();
+    t.ok(createSlackEvent(e).cmd instanceof UrlVerificationCommand, "is UrlVerificationCommand");
+  });
+  
   test("routes app_home_opened", function(t) {
     var e = mock_slack_homeOpened_event();
     t.ok(createSlackEvent(e).cmd instanceof HomeOpenedCommand, "is HomeOpenedCommand");
@@ -291,57 +310,29 @@ function gast_test_slackEventAdapters(test) {
 function gast_test_slackEvent(test) {
   var token_true = PropertiesService.getScriptProperties().getProperty(
     'VERIFICATION_TOKEN');
-  var teamid_true = globalVariables()['TEAM_ID'];
-  var accepted_types = ['view_submission', 'command'];
   
   test("throws if auth failure", function(t) {
     t.equal(
       try_constructor_return(
         SlackEventController,
         token = "incorrect_token_placeholder",
-        teamid = teamid_true,
-        type = accepted_types[0],
+        teamid = null,
+        type = null,
         cmd = new VoidCommand(args = {})
       ),
       slackTokenIsIncorrectMessage("incorrect_token_placeholder"),
       "incorrect token"
     );
-    
-    t.equal(
-      try_constructor_return(
-        SlackEventController,
-        token = token_true,
-        teamid = "incorrect_teamid_placeholder",
-        type = accepted_types[0],
-        cmd = new VoidCommand(args = {})
-      ),
-      slackWorspaceIsIncorrectMessage(),
-      "incorrect teamid"
-    );
-    
-    t.equal(
-      try_constructor_return(
-        SlackEventController,
-        token = token_true,
-        teamid = teamid_true,
-        type = "incorrect_type_placeholder",
-        cmd = new VoidCommand(args = {})
-      ),
-      slackEventTypeIsIncorrectMessage("incorrect_type_placeholder"),
-      "incorrect type"
-    );
   })
   
   test("returns void if auth success and voidcommand", function(t) {
-    for(var i=0; i < accepted_types.length; i++) {
-      slackEvent = new SlackEventController(
+     slackEvent = new SlackEventController(
         token = token_true,
-        teamid = teamid_true,
-        type = accepted_types[i],
+        teamid = null,
+        type = null,
         cmd = new VoidCommand(args = {})
       );
-      t.ok(slackEvent.handle() === undefined, `type ${accepted_types[i]}`);
-    }
+      t.ok(slackEvent.handle() === undefined, "");
   })
 }
 
@@ -502,6 +493,11 @@ function gast_test_commands(test) {
     t.equal(return_val, return_val_expected, "returns success message");
     t.equal(messenger.sent[0].msg, message_expected, "correct slack modal payload");
   })
+  
+  test("url verification command success", function(t) {
+    var cmd = new UrlVerificationCommand({more: {challenge: "secret-challenge"}});
+    t.equal(cmd.execute(), "secret-challenge", "returns challenge");
+  });
   
   test("home opened command success", function(t) {
     var cmd = new HomeOpenedCommand({userid: "UVCNQASN6", more: {tab: "home"}});

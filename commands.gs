@@ -157,6 +157,13 @@ class VoidCommand extends Command {
   execute() {}
 }
 
+
+class UrlVerificationCommand extends Command {
+  execute() {
+    return this.args.more.challenge;
+  }
+}
+
 class HomeShortcutCommand extends Command {
   notify(messenger){
     messenger = messenger !== undefined ? messenger : new SlackModalMessenger(this);

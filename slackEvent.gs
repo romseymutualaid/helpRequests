@@ -41,7 +41,7 @@ var slackEventAdapter = function(e) {
     var payload = tryParseJSON(e.postData.contents);
     switch (payload.type) {
       case "url_verification":
-        return new SlackUrlVerificationEventController(payload);
+        return slackUrlVerificationAdapter(e);
       case "event_callback":
         return slackHomeOpenedAdapter(e);
       default:
@@ -97,6 +97,31 @@ var slackGlobalShortcutAdapter = function(e) {
       uniqueid: null,
       mention: {str: null, userid: null, username: null},
       more: null
+    })
+  };
+}
+
+/**
+ * Return SlackEvent arguments given a SlackVerificationUrl event object.
+ * @param {*} e A Slack "Events API" of type "url_verification" event object. See
+ *   https://api.slack.com/events/url_verification
+ */
+var slackUrlVerificationAdapter = function(e) {
+  var payload = JSON.parse(e.postData.contents);
+  return {
+    token: payload.token,
+    teamid: null,
+    type: payload.type,
+    cmd: createCommandClassInstance(args = {
+      cmd_name: payload.type,
+      channelid: null,
+      userid: null,
+      username: null,
+      response_url: null,
+      trigger_id: null,
+      uniqueid: null,
+      mention: {str: null, userid: null, username: null},
+      more: {"challenge": payload.challenge}
     })
   };
 }
@@ -201,11 +226,9 @@ class SlackEventController {
   }
   
   parse() {
-    // Fetch validation variables
+    // Check token
     var token_true = PropertiesService.getScriptProperties().getProperty(
       'VERIFICATION_TOKEN'); // expected slack API verification token.
-    
-    // Check token
     if(!token_true){ // check that token_true has been set in script properties
       throw new Error(slackTokenNotSetInScriptMessage());
     }
@@ -220,13 +243,5 @@ class SlackEventController {
   handle() {
     var immediateReturnMessage = this.cmd.run();    
     return immediateReturnMessage;
-  }
-}
-
-class SlackUrlVerificationEventController extends SlackEventController {
-  constructor(par){
-    super(par);
-    this.token = par.token;
-    this.cmd.immediateReturnMessage = par.challenge;
   }
 }

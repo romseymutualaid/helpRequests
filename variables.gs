@@ -66,6 +66,7 @@ function globalVariables(){
     // subclass that should be instantiated.
     SUBCLASS_FROM_SLACKCMD: {
       undefined:VoidCommand,
+      'url_verification': UrlVerificationCommand,
       'shortcut_app_home':HomeShortcutCommand,
       'app_home_opened':HomeOpenedCommand,
       'button_volunteer':VolunteerCommand,
@@ -106,6 +107,7 @@ function globalVariables(){
     
     // Commands that are to be processed sync
     SYNC_COMMANDS: [
+      "url_verification",
       'shortcut_app_home',
       'button_done',
       '/jb_d',
