@@ -130,6 +130,28 @@ var mock_slack_api_event = function(event_obj) {
   };
 }
 
+var mock_slack_button_event = function(id, value) {
+  // see https://api.slack.com/reference/interaction-payloads/block-actions
+  // https://api.slack.com/legacy/message-buttons
+  return {parameter: {
+    payload: JSON.stringify({
+      token: PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'),
+      team: {id: globalVariables()['TEAM_ID']},
+      channel: {id: ""},
+      user: {id: "", name: ""},
+      type: "block_actions",
+      message: {},
+      view: {},
+      actions: [
+        {block_id: "", action_id: id, value: value}
+      ],
+      trigger_id: "",
+      response_url: ""
+    })
+  }};
+}
+
+
 function gast_test_positive_controls(test) {
   test('do calculation right', function (t) {
     var i = 3 + 4
@@ -247,6 +269,21 @@ function gast_test_slackEventAdapters(test) {
   test("routes app_home_opened", function(t) {
     var e = mock_slack_homeOpened_event();
     t.ok(createSlackEvent(e).cmd instanceof HomeOpenedCommand, "is HomeOpenedCommand");
+  });
+  
+  test("routes button_volunteer", function(t) {
+    var e = mock_slack_button_event("button_volunteer", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof VolunteerCommand, "is VolunteerCommand");
+  });
+  
+  test("routes button_cancel", function(t) {
+    var e = mock_slack_button_event("button_cancel", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof CancelCommand, "is CancelCommand");
+  });
+  
+  test("routes button_done", function(t) {
+    var e = mock_slack_button_event("button_done", "0000");
+    t.ok(createSlackEvent(e).cmd instanceof DoneSendModalCommand, "is DoneSendModalCommand");
   });
   
 }

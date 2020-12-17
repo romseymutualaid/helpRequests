@@ -31,7 +31,7 @@ var slackEventAdapter = function(e) {
       case 'view_submission':
         return slackModalSubmissionAdapter(e);
       case 'block_actions':
-        return new SlackButtonEventController(payload);
+        return slackButtonAdapter(e);
       default:
         throw new Error(slackEventTypeIsIncorrectMessage(payload.type));
     }
@@ -128,6 +128,33 @@ var slackHomeOpenedAdapter = function(e) {
 }
 
 /**
+ * Return SlackEvent arguments given a SlackButton event object.
+ * @param {*} e A Slack "blocks-action" of type "button" event object. See
+ *   https://api.slack.com/reference/interaction-payloads/block-actions
+ *   https://api.slack.com/legacy/message-buttons
+ */
+var slackButtonAdapter = function(e) { 
+  var payload = JSON.parse(e.parameter.payload);
+  var channel_id = payload.channel !== undefined ? payload.channel.id : null;
+  return {
+    token: payload.token,
+    teamid: payload.team.id,
+    type: payload.type,
+    cmd: createCommandClassInstance(args = {
+      cmd_name: payload.actions[0].action_id,
+      channelid: channel_id,
+      userid: payload.user.id,
+      username: payload.user.name,
+      response_url: payload.response_url,
+      trigger_id: payload.trigger_id,
+      uniqueid: payload.actions[0].value,
+      mention: {str: null, userid: null, username: null},
+      more: null
+    })
+  };
+}
+
+/**
  * Return SlackEvent arguments given a SlackSlashCommand event object.
  * @param {*} e A Slack slash command event object. See
  *   https://api.slack.com/interactivity/slash-commands#app_command_handling
@@ -201,28 +228,5 @@ class SlackUrlVerificationEventController extends SlackEventController {
     super(par);
     this.token = par.token;
     this.cmd.immediateReturnMessage = par.challenge;
-  }
-}
-
-class SlackButtonEventController extends SlackEventController {
-  constructor(par){
-    super(par);
-    
-    this.token = par.token;
-    this.teamid = par.team.id;
-
-    this.type = par.type;
-    this.subtype = par.actions[0].action_id;
-
-    var args={};
-    if (par.channel) args.channelid = par.channel.id;
-    args.userid = par.user.id;
-    args.username = par.user.name;
-    args.response_url = par.response_url;
-    args.trigger_id = par.trigger_id;
-
-    args.uniqueid = par.actions[0].value;
-    
-    this.cmd = createCommandClassInstance(this.subtype, args);
   }
 }
