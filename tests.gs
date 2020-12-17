@@ -8,7 +8,7 @@ function gast() {
   var test = new GasTap();
   
   gast_test_positive_controls(test);
-//  gast_test_doPost(test);
+  gast_test_doPost(test);
   gast_test_slackEventAdapters(test);
   gast_test_slackEvent(test);
 //  gast_test_sheetEventAdapters(test);
@@ -180,8 +180,8 @@ function gast_test_positive_controls(test) {
 }
 
 function gast_test_doPost(test) {
-  test("throws if empty par", function(t) {
-    var e = {parameter: {}};
+  test("throws if empty event", function(t) {
+    var e = {parameter: {}, postData: {contents : ""}};
     t.throws(doPost(e), "test throws");
   });
   
@@ -316,8 +316,6 @@ function gast_test_slackEvent(test) {
       try_constructor_return(
         SlackEventController,
         token = "incorrect_token_placeholder",
-        teamid = null,
-        type = null,
         cmd = new VoidCommand(args = {})
       ),
       slackTokenIsIncorrectMessage("incorrect_token_placeholder"),
@@ -328,8 +326,6 @@ function gast_test_slackEvent(test) {
   test("returns void if auth success and voidcommand", function(t) {
      slackEvent = new SlackEventController(
         token = token_true,
-        teamid = null,
-        type = null,
         cmd = new VoidCommand(args = {})
       );
       t.ok(slackEvent.handle() === undefined, "");

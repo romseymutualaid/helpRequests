@@ -13,8 +13,8 @@
  *   https://developers.google.com/apps-script/guides/web
  */
 var createSlackEvent = function(e) {
-  var {token, teamid, type, cmd} = slackEventAdapter(e);
-  return new SlackEventController(token, teamid, type, cmd);
+  var {token, cmd} = slackEventAdapter(e);
+  return new SlackEventController(token, cmd);
 }
 
 /**
@@ -60,8 +60,6 @@ var slackModalSubmissionAdapter = function(e) {
   var metadata = JSON.parse(payload.view.private_metadata);
   return {
     token: payload.token,
-    teamid: payload.team.id,
-    type: payload.type,
     cmd: createCommandClassInstance(args = {
       cmd_name: payload.view.callback_id,
       channelid: metadata.channelid,
@@ -85,8 +83,6 @@ var slackGlobalShortcutAdapter = function(e) {
   var payload = JSON.parse(e.parameter.payload);
   return {
     token: payload.token,
-    teamid: payload.team.id,
-    type: payload.type,
     cmd: createCommandClassInstance(args = {
       cmd_name: payload.callback_id,
       channelid: null,
@@ -110,8 +106,6 @@ var slackUrlVerificationAdapter = function(e) {
   var payload = JSON.parse(e.postData.contents);
   return {
     token: payload.token,
-    teamid: null,
-    type: payload.type,
     cmd: createCommandClassInstance(args = {
       cmd_name: payload.type,
       channelid: null,
@@ -136,8 +130,6 @@ var slackHomeOpenedAdapter = function(e) {
   var payload = JSON.parse(e.postData.contents);
   return {
     token: payload.token,
-    teamid: payload.team_id,
-    type: payload.type,
     cmd: createCommandClassInstance(args = {
       cmd_name: payload.event.type,
       channelid: payload.event.channel,
@@ -163,8 +155,6 @@ var slackButtonAdapter = function(e) {
   var channel_id = payload.channel !== undefined ? payload.channel.id : null;
   return {
     token: payload.token,
-    teamid: payload.team.id,
-    type: payload.type,
     cmd: createCommandClassInstance(args = {
       cmd_name: payload.actions[0].action_id,
       channelid: channel_id,
@@ -194,8 +184,6 @@ var slackSlashCommandAdapter = function(e) {
   
   return {
     token: payload.token,
-    teamid: payload.team_id,
-    type: "command",
     cmd: createCommandClassInstance(args = {
       cmd_name: payload.command,
       channelid: payload.channel_id,
@@ -216,10 +204,8 @@ var slackSlashCommandAdapter = function(e) {
 class SlackEventController {
   // Controller for slack doPost events
   
-  constructor(token, teamid, type, cmd){    
+  constructor(token, cmd){    
     this.token = token; // Slack app verification token.
-    this.teamid = teamid; // Slack workspace id.
-    this.type = type; // Event type (slash command, interactive message, ...).
     this.cmd = cmd; // Command object.
     
     this.parse();
