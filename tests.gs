@@ -85,6 +85,51 @@ var mock_slack_modalSubmit_event = function(id="modal_done") {
   }};
 }
 
+var mock_slack_shortcut_event = function(id="shortcut_app_home") {
+  // see https://api.slack.com/reference/interaction-payloads/shortcuts#message_actions
+  return {parameter: {
+    payload: JSON.stringify({
+      token: PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'),
+      team: {id: globalVariables()['TEAM_ID']},
+      user: {id: ""},
+      type: "shortcut",
+      callback_id: id,
+      trigger_id: ""
+    })
+  }};
+}
+
+var mock_slack_homeOpened_event = function() {
+  // see https://api.slack.com/events/app_home_opened
+  return mock_slack_api_event({
+    type: "app_home_opened",
+    event_ts: "",
+    ts: "",
+    user: "",
+    tab: "home",
+    view: {},
+  });
+}
+
+var mock_slack_api_event = function(event_obj) {
+  // see https://api.slack.com/events-api#begin
+  return {
+    parameter: {},
+    postData: {
+      contents: JSON.stringify({
+        token: PropertiesService.getScriptProperties().getProperty('VERIFICATION_TOKEN'),
+        api_app_id: "",
+        team_id: globalVariables()['TEAM_ID'],
+        type: "event_callback",
+        event: event_obj,
+        event_id: "",
+        event_time: 0123,
+        authorizations: [{}]
+      })
+    }
+  };
+}
+
 function gast_test_positive_controls(test) {
   test('do calculation right', function (t) {
     var i = 3 + 4
@@ -192,6 +237,16 @@ function gast_test_slackEventAdapters(test) {
   test("routes modal_done", function(t) {
     var e = mock_slack_modalSubmit_event("modal_done");
     t.ok(createSlackEvent(e).cmd instanceof DoneCommand, "is DoneCommand");
+  });
+  
+  test("routes shortcut_app_home", function(t) {
+    var e = mock_slack_shortcut_event("shortcut_app_home");
+    t.ok(createSlackEvent(e).cmd instanceof HomeShortcutCommand, "is HomeShortcutCommand");
+  });
+  
+  test("routes app_home_opened", function(t) {
+    var e = mock_slack_homeOpened_event();
+    t.ok(createSlackEvent(e).cmd instanceof HomeOpenedCommand, "is HomeOpenedCommand");
   });
   
 }

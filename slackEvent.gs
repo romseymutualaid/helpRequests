@@ -13,8 +13,7 @@
  *   https://developers.google.com/apps-script/guides/web
  */
 var createSlackEvent = function(e) {
-  var adapter = getEventAdapter(e);
-  var {token, teamid, type, cmd} = adapter(e.parameter);
+  var {token, teamid, type, cmd} = slackEventAdapter(e);
   return new SlackEventController(token, teamid, type, cmd);
 }
 
@@ -23,23 +22,42 @@ var createSlackEvent = function(e) {
  * For details on slack events see https://api.slack.com/interactivity/entry-points
  * @param {*} e An event object.
  */
-var getEventAdapter = function(e) {
+var slackEventAdapter = function(e) {
   if (e.parameter.payload) { // this is a slack interactive component event
-    return slackInteractiveMessageAdapter;
-  } else { // this is a slack slash command event
-    return slackSlashCommandAdapter;
+    var payload = JSON.parse(e.parameter.payload);
+    switch (payload.type) {
+      case 'shortcut':
+        return slackGlobalShortcutAdapter(e);
+      case 'view_submission':
+        return slackModalSubmissionAdapter(e);
+      case 'block_actions':
+        return new SlackButtonEventController(payload);
+      default:
+        throw new Error(slackEventTypeIsIncorrectMessage(payload.type));
+    }
+  } else if (e.parameter.command) { // this is a slack slash command event
+    return slackSlashCommandAdapter(e);
+  } else {
+    var payload = tryParseJSON(e.postData.contents);
+    switch (payload.type) {
+      case "url_verification":
+        return new SlackUrlVerificationEventController(payload);
+      case "event_callback":
+        return slackHomeOpenedAdapter(e);
+      default:
+        throw new Error(slackEventTypeIsIncorrectMessage(payload.type));
+    }
   }
 }
 
 /**
- * Return SlackEvent arguments given a SlackInteractiveMessage parameters object.
- * @param {*} par A Slack interactive message parameters object. See
+ * Return SlackEvent arguments given a SlackModalSubmission event object.
+ * @param {*} e A Slack "view_submission" event object. See
  *   https://api.slack.com/reference/interaction-payloads/views#view_submission
  */
-var slackInteractiveMessageAdapter = function(par) {
-  var payload = JSON.parse(par.payload);
+var slackModalSubmissionAdapter = function(e) {
+  var payload = JSON.parse(e.parameter.payload);
   var metadata = JSON.parse(payload.view.private_metadata);
-  
   return {
     token: payload.token,
     teamid: payload.team.id,
@@ -59,28 +77,80 @@ var slackInteractiveMessageAdapter = function(par) {
 }
 
 /**
- * Return SlackEvent arguments given a SlackSlashCommand parameters object.
- * @param {*} par A Slack slash command parameters object. See
+ * Return SlackEvent arguments given a SlackGlobalShortcut event object.
+ * @param {*} e A Slack "message_actions" of type "shortcut" event object. See
+ *   https://api.slack.com/reference/interaction-payloads/shortcuts#message_actions
+ */
+var slackGlobalShortcutAdapter = function(e) {
+  var payload = JSON.parse(e.parameter.payload);
+  return {
+    token: payload.token,
+    teamid: payload.team.id,
+    type: payload.type,
+    cmd: createCommandClassInstance(args = {
+      cmd_name: payload.callback_id,
+      channelid: null,
+      userid: payload.user.id,
+      username: null,
+      response_url: null,
+      trigger_id: payload.trigger_id,
+      uniqueid: null,
+      mention: {str: null, userid: null, username: null},
+      more: null
+    })
+  };
+}
+
+/**
+ * Return SlackEvent arguments given a SlackHomeOpened event object.
+ * @param {*} e A Slack "Events API" of type "app_home_opened" event object. See
+ *   https://api.slack.com/events/app_home_opened
+ *   https://api.slack.com/events-api#begin
+ */
+var slackHomeOpenedAdapter = function(e) {
+  var payload = JSON.parse(e.postData.contents);
+  return {
+    token: payload.token,
+    teamid: payload.team_id,
+    type: payload.type,
+    cmd: createCommandClassInstance(args = {
+      cmd_name: payload.event.type,
+      channelid: payload.event.channel,
+      userid: payload.event.user,
+      username: null,
+      response_url: null,
+      trigger_id: null,
+      uniqueid: null,
+      mention: {str: null, userid: null, username: null},
+      more: {"tab": payload.event.tab}
+    })
+  };
+}
+
+/**
+ * Return SlackEvent arguments given a SlackSlashCommand event object.
+ * @param {*} e A Slack slash command event object. See
  *   https://api.slack.com/interactivity/slash-commands#app_command_handling
  */
-var slackSlashCommandAdapter = function(par) {
+var slackSlashCommandAdapter = function(e) {
+  var payload = e.parameter;
   uniqueid = null;
   mention_str = null;
-  if (par.text) {
-    [uniqueid, mention_str] = par.text.split(' ');
+  if (payload.text) {
+    [uniqueid, mention_str] = payload.text.split(' ');
   }
   
   return {
-    token: par.token,
-    teamid: par.team_id,
+    token: payload.token,
+    teamid: payload.team_id,
     type: "command",
     cmd: createCommandClassInstance(args = {
-      cmd_name: par.command,
-      channelid: par.channel_id,
-      userid: par.user_id,
-      username: par.user_name,
-      response_url: par.response_url,
-      trigger_id: par.trigger_id,
+      cmd_name: payload.command,
+      channelid: payload.channel_id,
+      userid: payload.user_id,
+      username: payload.user_name,
+      response_url: payload.response_url,
+      trigger_id: payload.trigger_id,
       uniqueid: uniqueid,
       mention: {str: mention_str, userid: null, username: null},
       more: null
@@ -134,41 +204,6 @@ class SlackUrlVerificationEventController extends SlackEventController {
   }
 }
 
-class SlackAPIEventController extends SlackEventController {
-  constructor(par){
-    super(par);
-    this.token = par.token;
-    this.teamid = par.team_id;
-    
-    this.type = 'event_callback';
-    this.subtype = par.event.type;
-    
-    var args = {};
-    args.channelid = par.event.channel;
-    args.userid = par.event.user;
-    args.more = {"tab": par.event.tab};
-    
-    this.cmd = createCommandClassInstance(this.subtype, args);
-  }
-}
-
-class SlackGlobalShortcutEventController extends SlackEventController {
-  constructor(par){
-    super(par);
-    this.token = par.token;
-    this.teamid = par.team.id;
-
-    this.type = par.type;
-    this.subtype = par.callback_id;
-    
-    var args={};
-    args.userid = par.user.id;
-    args.trigger_id = par.trigger_id;
-    
-    this.cmd = createCommandClassInstance(this.subtype, args);
-  }
-}
-
 class SlackButtonEventController extends SlackEventController {
   constructor(par){
     super(par);
@@ -189,47 +224,5 @@ class SlackButtonEventController extends SlackEventController {
     args.uniqueid = par.actions[0].value;
     
     this.cmd = createCommandClassInstance(this.subtype, args);
-  }
-}
-
-/**
- *  Return the appropriate SlackEvent subclass instance based on the specified event object e.
- *  For details on slack events see:
- *  https://api.slack.com/interactivity
- * @param {*} e
- */
-var createSlackEventClassInstance = function(e) {
-  // extract event message body
-  var par = e.parameter;
-
-  // build the appropriate object depending on event type
-  var payload_str = par.payload;
-  if (payload_str){
-    // this is a slack interactive component event
-    var payload = JSON.parse(payload_str);
-    switch (payload.type){
-      case 'shortcut':
-        return new SlackGlobalShortcutEventController(payload);
-      case 'view_submission':
-        return new SlackInteractiveMessageEventController(payload);
-      case 'block_actions':
-        return new SlackButtonEventController(payload);
-      default:
-        throw new Error(slackEventTypeIsIncorrectMessage(payload.type));
-    }
-  } else{ 
-    var par_raw = tryParseJSON(e.postData.contents);
-    if (par_raw.type === 'url_verification'){
-      // this is a slack url verification event 
-      return new SlackUrlVerificationEventController(par_raw);
-    } else if (par_raw.type === 'event_callback'){
-      // this is a slack API event
-      return new SlackAPIEventController(par_raw);      
-    } else if (par.command) {
-      // this is a slack slash command event
-      return new SlackSlashCommandEventController(par);
-    } else {
-      throw new Error(slackEventTypeIsIncorrectMessage("type_unknown"));
-    }
   }
 }
