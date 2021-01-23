@@ -13,16 +13,14 @@
  * @param {*} e The event object.
  */
 function doPost(e) {
-//  Logger.log(e);
-//  Logger.log(e.postData.type);
-//  Logger.log(e.postData.contents);
   try{
     var slackEvent = createSlackEvent(e);
     var messageToUser = slackEvent.handle();
     return contentServerJsonReply(messageToUser);
   }
   catch(errObj){
-    if (errObj instanceof TypeError  || errObj instanceof ReferenceError || errObj instanceof SyntaxError){
+    if (errObj instanceof TypeError 
+      || errObj instanceof ReferenceError || errObj instanceof SyntaxError) {
       // if a code error, throw the full error log
       throw errObj;
     }
@@ -42,7 +40,8 @@ function doTriggered(e) {
     sheetEvent.notify(message);
   }
   catch(errObj){
-    if (errObj instanceof TypeError  || errObj instanceof ReferenceError || errObj instanceof SyntaxError){
+    if (errObj instanceof TypeError
+      || errObj instanceof ReferenceError || errObj instanceof SyntaxError) {
       // if a code error, throw the full error log
       throw errObj;
     }

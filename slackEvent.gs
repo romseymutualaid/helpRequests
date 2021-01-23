@@ -204,26 +204,24 @@ var slackSlashCommandAdapter = function(e) {
 class SlackEventController {
   // Controller for slack doPost events
   
-  constructor(token, cmd){    
+  constructor(token, cmd) {    
     this.token = token; // Slack app verification token.
     this.cmd = cmd; // Command object.
     
-    this.parse();
+    this.check_token();
+    this.cmd.parse();
   }
   
-  parse() {
-    // Check token
-    var token_true = PropertiesService.getScriptProperties().getProperty(
-      'VERIFICATION_TOKEN'); // expected slack API verification token.
+  check_token() {
+    var token_true = PropertiesService
+      .getScriptProperties()
+      .getProperty('VERIFICATION_TOKEN'); // expected slack API verification token.
     if(!token_true){ // check that token_true has been set in script properties
       throw new Error(slackTokenNotSetInScriptMessage());
     }
     if (this.token !== token_true) {
       throw new Error(slackTokenIsIncorrectMessage(this.token));
     }
-    
-    // Parse command+args
-    this.cmd.parse();
   }
   
   handle() {
