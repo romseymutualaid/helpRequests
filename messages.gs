@@ -152,7 +152,7 @@ var postRequestMessage = function(row, volunteerable=true){
       "type": "section",
       "fields": [
         {"type": "mrkdwn", "text": "*Requester:*"},
-        {"type": "plain_text", "text": `${row.requesterName} (${row.requesterAddr})`},
+        {"type": "plain_text", "text": `${row.requesterName} (${stripStartingNumbers(row.requesterAddr)})`},
         
         {"type": "mrkdwn", "text": "*Immediate request:*"},
         {"type": "plain_text", "text": `${row.requestType} `},
