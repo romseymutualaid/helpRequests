@@ -520,6 +520,8 @@ function gast_test_commands(test) {
     t.equal(cmd.row.slackTS, "new_ts", "ts is updated");
     t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1000, "logs uniqueid");
     t.equal(messenger.sent[0].msg, message_expected, "correct slack message");
+    t.ok(message_expected.includes("stockwell st"), "post partial address");
+    t.notOk(message_expected.includes("1 stockwell st"), "do not post full address");
   })
   
   test("postRequest command failure", function(t) {
