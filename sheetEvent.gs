@@ -170,7 +170,7 @@ var editTrackingSheetEventAdapter = function(e) {
 
 class SheetEventController {
   constructor(cmd, messenger){
-    this.cmd = cmd !== undefined ? cmd : new VoidCommand(args = {});
+    this.cmd = cmd !== undefined ? cmd : new VoidCommand({});
     this.messenger = messenger !== undefined ? messenger : new VoidMessenger(this.cmd);
   }
   

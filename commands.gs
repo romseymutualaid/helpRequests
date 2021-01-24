@@ -158,6 +158,52 @@ class VoidCommand extends Command {
 }
 
 
+class UrlVerificationCommand extends Command {
+  execute() {
+    return this.args.more.challenge;
+  }
+}
+
+class HomeShortcutCommand extends Command {
+  notify(messenger){
+    messenger = messenger !== undefined ? messenger : new SlackModalMessenger(this);
+    
+    var return_message = messenger.send(appHomeShortcutModalMessage(this.args));
+    if (JSON.parse(return_message).ok !== true){
+      throw new Error(postToSlackDefaultModalErrorMessage(return_message));
+    }
+    
+    return defaultSendModalSuccessMessage();
+  }
+}
+
+/**
+ *  Manage an opening of the slack app home page by user
+ */
+class HomeOpenedCommand extends Command {
+  parse(){
+    if(this.args.more.tab !== 'home'){
+      throw new Error(AppHomeWrongTabErrorMessage());
+    }
+  }
+  
+  getSheetData(){
+    this.rows = this.tracking_sheet.getAllRows().filter(
+      // non-closed status, belongs to user
+        row => (
+          isVarInArray(row.requestStatus,['Assigned','Ongoing'])
+          && row.slackVolunteerID === this.args.userid
+      )
+      );
+  }
+  
+  notify(messenger){
+    messenger = messenger !== undefined ? messenger : new SlackAppHomeMessenger(this);
+    var return_message = messenger.send(appHomeMessage(this.args, this.rows));    
+  }
+}
+
+
 /**
  *  Manage a StatusLog command from super user
  */
@@ -165,7 +211,7 @@ class StatusLogCommand extends Command {
   constructor(args){
     super(args);
     this.loggerMessage.subtype='statusManualEdit';
-    this.loggerMessage.additionalInfo=this.args.more;
+    this.loggerMessage.additionalInfo=this.args.more.requestStatusValue;
   }
   
   notify(messenger){
@@ -281,12 +327,20 @@ class VolunteerCommand extends Command {
   
   notify(messenger){
     
-    // slack channel messenger
-    var payload = volunteerChannelMessage(this.row);
-    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
-    var return_message = messenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackMessenger(this);
     
-    // halt if message was not successfully sent
+    var return_message = sendSlackChannelUpdate(
+      messenger,
+      postRequestMessage(this.row, false)
+    );
+    if (JSON.parse(return_message).ok !== true){
+      throw new Error(postToSlackChannelErrorMessage());
+    }
+    
+    var return_message = sendSlackChannel(
+      messenger,
+      volunteerChannelMessage(this.row)
+    );
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
@@ -321,7 +375,6 @@ class CancelCommand extends Command {
   checkCommandValidity(){
     checkUniqueIDexists(this.row, this.args);
     checkUniqueIDconsistency(this.row, this.args);
-    checkChannelIDconsistency(this.row, this.args);
     checkRowIsCancellable(this.row, this.args);
   }
   
@@ -335,12 +388,20 @@ class CancelCommand extends Command {
   
   notify(messenger){
     
-    // slack channel messenger
-    var payload = cancelChannelMessage(this.row,this.slackVolunteerID_old);                                                                                                           
-    messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
-    var return_message = messenger.send(payload);
+    messenger = messenger !== undefined ? messenger : new SlackMessenger(this);
     
-    // halt if message was not successfully sent
+    var return_message = sendSlackChannelUpdate(
+      messenger,
+      postRequestMessage(this.row, true)
+    );
+    if (JSON.parse(return_message).ok !== true){
+      throw new Error(postToSlackChannelErrorMessage());
+    }
+    
+    var return_message = sendSlackChannel(
+      messenger,
+      cancelChannelMessage(this.row,this.slackVolunteerID_old)
+    );
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
@@ -364,18 +425,11 @@ class DoneSendModalCommand extends Command {
   }
   
   notify(messenger){
-    
-    // Send post request to Slack views.open API to open a modal for user
-    var payload = doneModalMessage(this.args);
     messenger = messenger !== undefined ? messenger : new SlackModalMessenger(this);
-    var return_message = messenger.send(payload);
-  
-    // halt if message was not successfully sent
+    var return_message = messenger.send(doneModalMessage(this.args));
     if (JSON.parse(return_message).ok !== true){
-      throw new Error(postToSlackModalErrorMessage(return_message));
+      throw new Error(postToSlackDoneModalErrorMessage(return_message));
     }
-    
-    // user return message printer
     return doneSendModalSuccessMessage(this.args);
   }
 }
@@ -391,19 +445,19 @@ class DoneCommand extends Command {
     // modal requires a blank HTTP 200 OK immediate response (null) to close
     this.immediateReturnMessage = null;
     this.loggerMessage.subtype='done';
-    
+
     // done modal responses
-    var modalResponseVals = args.more;
+    var modalResponseVals = args.more.modalResponseValues;
     this.requestNextStatus = modalResponseVals.requestNextStatus.requestNextStatusVal.selected_option.value;
     if (
       modalResponseVals.completionLastDetails && 
       modalResponseVals.completionLastDetails.completionLastDetailsVal &&
       modalResponseVals.completionLastDetails.completionLastDetailsVal.selected_option &&
       modalResponseVals.completionLastDetails.completionLastDetailsVal.selected_option.value
-    ){
+    ) {
       this.completionLastDetails = modalResponseVals.completionLastDetails.completionLastDetailsVal.value;
     } else{
-      this.completionLastDetails=''; // replace undefined with ''
+      this.completionLastDetails = ''; // replace null/undefined with ''
     }
   }
   
@@ -417,9 +471,9 @@ class DoneCommand extends Command {
   
   updateState(){
     if ((this.requestNextStatus === '') || (this.requestNextStatus === 'unsure')
-      || (this.requestNextStatus === 'toClose')){
+      || (this.requestNextStatus === 'toClose')) {
       this.row.requestStatus = 'ToClose?';
-    } else if (this.requestNextStatus === 'keepOpenAssigned'){
+    } else if (this.requestNextStatus === 'keepOpenAssigned') {
       this.row.requestStatus = "Assigned";
     }
     this.row.completionCount = +this.row.completionCount +1;
@@ -430,28 +484,20 @@ class DoneCommand extends Command {
   checkCommandValidity(){
     checkUniqueIDexists(this.row, this.args);
     checkUniqueIDconsistency(this.row, this.args);
-    checkChannelIDconsistency(this.row, this.args);
     checkRowAcceptsDone(this.row, this.args);
   }
   
   notify(messenger){
-    
-    // slack channel messenger
-    var payload = doneChannelMessage(this.row);
     messenger = messenger !== undefined ? messenger : new SlackChannelMessenger(this);
-    var return_message = messenger.send(payload);
-    
-    // halt if message was not successfully sent
+    var return_message = messenger.send(doneChannelMessage(this.row));
     if (JSON.parse(return_message).ok !== true){
       throw new Error(postToSlackChannelErrorMessage());
     }
     
-    // tracking sheet writer
     this.loggerMessage.additionalInfo = this.row.completionLastDetails;
     this.tracking_sheet.writeRow(this.row);
     this.log_sheet.appendFormattedRow(this.loggerMessage);
     
-    // user return message printer
     return doneSuccessMessage(this.row, true);
   }
   
@@ -566,8 +612,7 @@ class ListMineCommand extends Command {
     .filter(
       // non-closed status, belongs to user and correct channel
       row => isVarInArray(row.requestStatus,['Assigned','Ongoing']) &&
-      row.slackVolunteerID === this.args.userid &&
-      row.channelid === this.args.channelid
+      row.slackVolunteerID === this.args.userid
       )
       .map(row => listLineMessage(row,false,false))
       .join('');
@@ -595,8 +640,7 @@ class ListAllMineCommand extends Command {
     var message_out_body = this.rows
     .filter(
       //  belongs to user and correct channel
-      row => row.slackVolunteerID === this.args.userid &&
-      row.channelid === this.args.channelid
+      row => row.slackVolunteerID === this.args.userid
       )
       .map(row => listLineMessage(row,true,false))
       .join('');

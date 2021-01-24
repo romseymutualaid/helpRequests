@@ -19,7 +19,8 @@ function doPost(e) {
     return contentServerJsonReply(messageToUser);
   }
   catch(errObj){
-    if (errObj instanceof TypeError  || errObj instanceof ReferenceError){
+    if (errObj instanceof TypeError 
+      || errObj instanceof ReferenceError || errObj instanceof SyntaxError) {
       // if a code error, throw the full error log
       throw errObj;
     }
@@ -39,7 +40,8 @@ function doTriggered(e) {
     sheetEvent.notify(message);
   }
   catch(errObj){
-    if (errObj instanceof TypeError  || errObj instanceof ReferenceError){
+    if (errObj instanceof TypeError
+      || errObj instanceof ReferenceError || errObj instanceof SyntaxError) {
       // if a code error, throw the full error log
       throw errObj;
     }
