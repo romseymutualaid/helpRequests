@@ -155,7 +155,7 @@ var editTrackingSheetEventAdapter = function(e) {
     if (e.value === 'Re-open') {
       var cmd = new CancelCommand(args);
     } else {
-      args.more = e.value;
+      args.more = {requestStatusValue: e.value};
       var cmd = new StatusLogCommand(args);
     }
   }
