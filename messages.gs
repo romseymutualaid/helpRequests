@@ -175,8 +175,7 @@ var postRequestMessage = function(row, volunteerable=true){
 			"text": {"type": "mrkdwn", "text": `_Request ID ${row.uniqueid}_`}
 		}
   ];
-    
-  // if the request is volunteerable, add "Volunteer" button as a last block element.
+
   if (volunteerable) {
     blocks.push({
       "type": "actions",
@@ -295,11 +294,10 @@ var doneModalMessage = function(args){
 var volunteerSuccessMessage = function(row, isFirstMessage=true) {
   var mention_requestCoord = globalVariables()['MENTION_REQUESTCOORD'];
 
-  // personalise text depending on whether this is the first time volunteer sees the message or not
   if (isFirstMessage){
-    var introTxt = ":nerd_face::tada: You signed up for <" + row.slackURL + "|request " + row.uniqueid + ">."
+    var introTxt = `:nerd_face::tada: You signed up for <${row.slackURL}|request ${row.uniqueid}>.`
   } else{
-    var introTxt = ":nerd_face::tada: You are still signed up for <" + row.slackURL + "|request " + row.uniqueid + ">."
+    var introTxt = `:nerd_face::tada: You are still signed up for <${row.slackURL}|request ${row.uniqueid}>.`
   }
   
   var blocks_header = [
@@ -317,14 +315,14 @@ var volunteerSuccessMessage = function(row, isFirstMessage=true) {
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": `*Let me know when you have helped - or if you wish to cancel - on your ${appHomePageDirectionsFormatted()}.*`
+        "text": `*When you have helped - or to cancel - update the request on the <${appHomeUrl()}|dashboard>.*`
       }
     },
     {
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": `Alternatively, you can send \`/done ${row.uniqueid}\`, \`/cancel ${row.uniqueid}\` or \`/volunteer ${row.uniqueid}\` in the channel.`
+        "text": `Alternatively, you can send \`/done ${row.uniqueid}\`, \`/cancel ${row.uniqueid}\` or \`/volunteer ${row.uniqueid}\` in this channel.`
       }
     },
     {
