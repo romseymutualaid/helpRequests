@@ -1,7 +1,11 @@
 // All custom messages sent to the view (slack API) are stored here.
 
 var requestFormatted = function(row){
-  return `<${row.slackURL}|request ${row.uniqueid}> (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
+  if (row.slackURL == "") {
+    return `request ${row.uniqueid} (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
+  } else {
+    return `<${row.slackURL}|request ${row.uniqueid}> (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
+  }
 }
 
 var requestPrivateDetailsFormatted = function(row){
