@@ -1,13 +1,5 @@
 // All custom messages sent to the view (slack API) are stored here.
 
-var appHomePageDirectionsFormatted = function(linkOnly=false){
-  var TEAM_ID = globalVariables()['TEAM_ID'];
-  var APP_ID = globalVariables()['SLACK_APP_ID'];
-  var link = `<slack:\/\/app?team=${TEAM_ID}&id=${APP_ID}&tab=home|request dashboard>`;
-  if (linkOnly) return link;
-  else return `${link} (Shorcut icon :zap: in message box -> Search "My requests dashboard")`;
-}
-
 var requestFormatted = function(row){
   return `<${row.slackURL}|request ${row.uniqueid}> (${row.requesterName}, ${stripStartingNumbers(row.requesterAddr)})`;
 }
@@ -55,6 +47,31 @@ var requestFormattedFull = function(row){
       "type":"divider"
     }
   ];
+}
+
+var appHomeUrl = function() {
+  var TEAM_ID = globalVariables()['TEAM_ID'];
+  var APP_ID = globalVariables()['SLACK_APP_ID'];
+  var url = `slack:\/\/app?team=${TEAM_ID}&id=${APP_ID}&tab=home`;
+  return url;
+}
+
+var appHomePageDirectionsFormatted = function(linkOnly=false) {
+  var link = `<${appHomeUrl()}|Go to dashboard>`;
+  if (linkOnly) return link;
+  else return `${link} (Shorcut icon :zap: in message box -> Search "My requests dashboard")`;
+}
+
+var appHomeButtonObject = function() {
+  return {
+    "type": "button",
+    "text": {
+      "type": "plain_text",
+      "text": "Dashboard"
+    },
+    "url": appHomeUrl(),
+    "action_id": "button_home"
+	};
 }
 
 var volunteerButtonObject = function(row){
@@ -117,6 +134,7 @@ var postRequestMessage = function(row, volunteerable=true){
   
   var text = 'A resident in your area has a request. Can you help?'; // text to display on mobile app notification
   
+  // all user-input text is escaped (type: "plain_text") to protect against cross-site scripting attacks.
   var blocks = [
 	{
       "type": "section",
@@ -134,55 +152,45 @@ var postRequestMessage = function(row, volunteerable=true){
       "type": "section",
       "fields": [
         {"type": "mrkdwn", "text": "*Requester:*"},
-        {"type": "plain_text", "text": row.requesterName + " ("+ row.requesterAddr +")"},
-        
-        {"type": "mrkdwn", "text": "*Contact details:*"},
-        {"type": "mrkdwn", "text": "_Sent only to volunteer._"},
+        {"type": "plain_text", "text": `${row.requesterName} (${row.requesterAddr})`},
         
         {"type": "mrkdwn", "text": "*Immediate request:*"},
-        {"type": "plain_text", "text": row.requestType + " "},
+        {"type": "plain_text", "text": `${row.requestType} `},
         
         {"type": "mrkdwn", "text": "*Date needed:*"},
-        {"type": "plain_text", "text": formatDate(row.requestDate) + " "},
+        {"type": "plain_text", "text": `${formatDate(row.requestDate)} `},
         
         {"type": "mrkdwn", "text": "*Request additional info:*"},
-        {"type": "plain_text","text": row.requestInfo + " "}
-      ]
-    },
-    {
-      "type": "section",
-      "fields": [
+        {"type": "plain_text","text": `${row.requestInfo} `},
+
         {"type": "mrkdwn", "text": "*Prospective needs:*"},
-        {"type": "plain_text", "text": row.requesterGeneralNeeds + " "},
-        {"type": "mrkdwn", "text": "*Request number:*"},
-        {"type": "plain_text", "text": row.uniqueid + " "}
+        {"type": "plain_text", "text": `${row.requesterGeneralNeeds} `}
       ]
     },
     {
       "type": "divider"
-    }
-  ]; // this message is formatted in such a way that all user-input text is escaped (type: "plain_text"). This is intended to protect against cross-site scripting attacks.
+    },
+    {
+			"type": "section",
+			"text": {"type": "mrkdwn", "text": `_Request ID ${row.uniqueid}_`}
+		}
+  ];
     
   // if the request is volunteerable, add "Volunteer" button as a last block element.
-  if (volunteerable){
-    blocks.push(
-      {
-        "type": "actions",
-        "elements": [
-          volunteerButtonObject(row)
-        ]
-      }
-    );
-  } else{
-    blocks.push(
-      {
-        "type": "section",
-        "text": {
-          "type": "mrkdwn",
-          "text": `*This request has been volunteered for. Find all the requests you have signed up for on your ${appHomePageDirectionsFormatted()}.*`
-        }
-      }
-    );
+  if (volunteerable) {
+    blocks.push({
+      "type": "actions",
+      "elements": [volunteerButtonObject(row)]
+    });
+  } else {
+    blocks.push({
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": `*<@${row.slackVolunteerID}> has volunteered! :raised_hands:*`
+      },
+      "accessory": appHomeButtonObject()
+    });
   }
   
   return JSON.stringify({
