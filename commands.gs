@@ -394,7 +394,7 @@ class CancelCommand extends Command {
       messenger,
       postRequestMessage(this.row, true)
     );
-    if (JSON.parse(return_message).ok !== true){
+    if (JSON.parse(return_message).ok !== true) {
       throw new Error(postToSlackChannelErrorMessage());
     }
     
@@ -402,16 +402,24 @@ class CancelCommand extends Command {
       messenger,
       cancelChannelMessage(this.row,this.slackVolunteerID_old)
     );
-    if (JSON.parse(return_message).ok !== true){
+    if (JSON.parse(return_message).ok !== true) {
       throw new Error(postToSlackChannelErrorMessage());
     }
     
     // tracking sheet writer
     this.tracking_sheet.writeRow(this.row);
     this.log_sheet.appendFormattedRow(this.loggerMessage);
+
+    var return_message = sendSlackModal(
+      messenger,
+      cancelModalSuccessMessage(this.args, this.row)
+    );
+    if (JSON.parse(return_message).ok !== true) {
+      throw new Error(postToSlackDefaultModalErrorMessage(return_message));
+    }
     
     // user return message printer
-    return cancelSuccessMessage(this.row,true);
+    return cancelSuccessMessage(this.row);
   }
 }
 
