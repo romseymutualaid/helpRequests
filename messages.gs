@@ -117,7 +117,25 @@ var cancelButtonObject = function(row){
       "text": "I can no longer help"
     },
     "action_id": "button_cancel",
-    "value": row.uniqueid
+    "value": row.uniqueid,
+    "confirm": {
+      "title": {
+        "type": "plain_text",
+        "text": "Confirmation"
+      },
+      "text": {
+        "type": "mrkdwn",
+        "text": `We will open up ${requestFormatted(row)} to other volunteers.`
+      },
+      "confirm": {
+        "type": "plain_text",
+        "text": "Yes"
+      },
+      "deny": {
+        "type": "plain_text",
+        "text": "No"
+      }
+    }
   };
 }
 
@@ -355,6 +373,18 @@ var volunteerSuccessMessage = function(row, isFirstMessage=true) {
       blocks_divider,
       blocks_footer
     )
+  });
+}
+
+var cancelModalSuccessMessage = function(args, row) {
+  return JSON.stringify({
+    trigger_id: args.trigger_id,
+    view: JSON.stringify({
+      "type": "modal",
+      "title": {"type": "plain_text","text": "All good"},
+      "close": {"type": "plain_text","text": "Ok"},
+      "blocks": JSON.parse(cancelSuccessMessage(row)).blocks
+    })
   });
 }
 

@@ -582,8 +582,8 @@ function gast_test_commands(test) {
   })
   
   test("cancel command success", function(t) {
-    var cmd = new CancelCommand(
-      {uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6"});
+    var cmd_args = {uniqueid: "1001", channelid: "C012HGQEJMB", userid: "UVCNQASN6"};
+    var cmd = new CancelCommand(cmd_args);
     var tracking_sheet = new TrackingSheetWrapper(new MockSheet(mock_tracking_array()));
     var log_sheet = new LogSheetWrapper(new MockSheet());
     var messenger = new MockMessenger();   
@@ -594,7 +594,8 @@ function gast_test_commands(test) {
     );
     var messages_expected = [
       postRequestMessage(tracking_sheet.getRowByUniqueID(1001), true),
-      cancelChannelMessage(tracking_sheet.getRowByUniqueID(1001), "UVCNQASN6")
+      cancelChannelMessage(tracking_sheet.getRowByUniqueID(1001), "UVCNQASN6"),
+      cancelModalSuccessMessage(cmd_args, tracking_sheet.getRowByUniqueID(1001))
     ];
     t.equal(cmd.row.uniqueid, "1001", "correct uniqueid");
     t.equal(cmd.row.requestStatus, "Sent", "status is Sent");
@@ -603,6 +604,7 @@ function gast_test_commands(test) {
     t.equal(cmd.log_sheet.sheet.arr2d[0][1], 1001, "logs uniqueid");
     t.equal(messenger.sent[0].msg, messages_expected[0], "correct slack channel payload");
     t.equal(messenger.sent[1].msg, messages_expected[1], "correct slack thread payload");
+    t.equal(messenger.sent[2].msg, messages_expected[2], "correct slack modal payload");
   })
   
   test("done modal command success", function(t) {
